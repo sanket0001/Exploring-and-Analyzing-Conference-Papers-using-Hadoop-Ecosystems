@@ -9,3 +9,6 @@ Each paper is in PDF format. The total number of papers is 403 that has been acc
 
 Dataset link - https://www.kaggle.com/benhamner/nips-2015-papers
 
+Read How to run File in Source Folder. Datasets files folder contains all txt files of papers and also authors.csv and paperauthors.csv files for hive problem.
+
+Documentation folder contains conatains documentation.
