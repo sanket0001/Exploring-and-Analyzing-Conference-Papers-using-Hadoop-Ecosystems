@@ -1,0 +1,1606 @@
+
+
+
+Paper ID = 5971
+Title = Space-Time Local Embeddings
+Ke Sun1∗ Jun Wang2 Alexandros Kalousis3,1 Stéphane Marchand-Maillet1
+1 Viper Group, Computer Vision and Multimedia Laboratory, University of Geneva
+sunk.edu@gmail.com, Stephane.Marchand-Maillet@unige.ch, and 2 Expedia,
+Switzerland, jwang1@expedia.com, and 3 Business Informatics Department, University
+of Applied Sciences, Western Switzerland, Alexandros.Kalousis@hesge.ch
+Abstract
+Space-time is a profound concept in physics. This concept was shown to be
+useful for dimensionality reduction. We present basic definitions with interest-
+ing counter-intuitions. We give theoretical propositions to show that space-time
+is a more powerful representation than Euclidean space. We apply this concept
+to manifold learning for preserving local information. Empirical results on non-
+metric datasets show that more information can be preserved in space-time.
+1 Introduction
+As a simple and intuitive representation, the Euclidean space <d has been widely used in various
+learning tasks. In dimensionality reduction, n given high-dimensional points in <D, or their pair-
+wise (dis-)similarities, are usually represented as a corresponding set of points in <d (d < D).
+The representation power of <d is limited. Some of its limitations are listed next. À The maximum
+number of points which can share a common nearest neighbor is limited (2 for <; 5 for <2) [1, 2],
+while such centralized structures do exist in real data. Á <d can at most embed (d + 1) points
+with uniform pair-wise similarities. It is hard to model pair-wise relationships with less variance. Â
+Even if d is large enough, <d as a metric space must satisfy the triangle inequality, and therefore
+must admit transitive similarities [2], meaning that a neighbor’s neighbor should also be nearby.
+Such relationships can be violated on real data, e.g. social networks. Ã The Gram matrix of n
+real vectors must be positive semi-definite (p. s. d.). Therefore <d cannot faithfully represent the
+negative eigen-spectrum of input similarities, which was discovered to be meaningful [3].
+To tackle the above limitations of Euclidean embeddings, a commonly-used method is to impose a
+statistical mixture model. Each embedding point is a random point on several candidate locations
+w. r. t. some mixture weights. These candidate locations can be in the same <d [4]. This allows an
+embedding point to jump across a long distance through a “statistical worm-hole”. Or, they can be
+in m independent <d’s [2, 5], resulting in m different views of the input data.
+Another approach beyond Euclidean embeddings is to change the embedding destination to a curved
+spaceMd. ThisMd can be a Riemannian manifold [6] with a positive definite metric, or equiva-
+lently, a curved surface embedded in a Euclidean space [7, 8]. To learn such an embedding requires
+a closed-form expression of the distance measure. ThisMd can also be semi-Riemannian [9] with
+an indefinite metric. This semi-Riemannian representation, under the names “pseudo-Euclidean
+space”, “Minkowski space”, or more conveniently, “space-time”, was shown [3, 7, 10–12] to be a
+powerful representation for non-metric datasets. In these works, an embedding is obtained through
+a spectral decomposition of a “pseudo-Gram” matrix, which is computed based on some input data.
+On the other hand, manifold learning methods [4, 13, 14] are capable of learning a p. s. d. ker-
+nel Gram matrix, that encapsulates useful information into a narrow band of its eigen-spectrum.
+∗Corresponding author
+1
+Usually, local neighborhood information is more strongly preserved as compared to non-local in-
+formation [4, 15], so that the input information is unfolded in a non-linear manner to achieve the
+desired compactness.
+The present work advocates the space-time representation. Section 2 introduces the basic concepts.
+Section 3 gives several simple propositions that describe the representation power of space-time. As
+novel contributions, section 4 applies the space-time representation to manifold learning. Section 5
+shows that using the same number of parameters, more information can be preserved by such em-
+beddings as compared to Euclidean embeddings. This leads to new data visualization techniques.
+Section 6 concludes and discusses possible extensions.
+2 Space-time
+The fundamental measurements in geometry are established by the concept of a metric [6]. Intu-
+itively, it is a locally- or globally-defined inner product. The metric of a Euclidean space <d is
+everywhere identity. The inner product between any two vectors y1 and y2 is 〈y1,y2〉 = yT1 Idy2,
+where Id is the d × d identity matrix. A space-time <ds,dt is a (ds + dt)-dimensional real vector
+space, where ds ≥ 0, dt ≥ 0, and the metric is
+M =
+[
+Ids 0
+0 −Idt
+]
+. (1)
+This metric is not trivial. It is semi-Riemannian with a background in physics [9]. A point in <ds,dt
+is called an event, denoted by y = (y1, . . . , yds , yds+1, . . . , yds+dt)T . The first ds dimensions
+are space-like, where the measurements are exactly the same as in a Euclidean space. The last dt
+dimensions are time-like, which cause counter-intuitions. In accordance to the metric M in eq. (1),
+∀y1,y2 ∈ <ds,dt , 〈y1, y2〉 =
+ds∑
+l=1
+yl1y
+l
+2 −
+ds+dt∑
+l=ds+1
+yl1y
+l
+2. (2)
+In analogy to using inner products to define distances, the following definition gives a dissimilarity
+measure between two events in <ds,dt .
+Definition 1. The space-time interval, or shortly interval, between any two events y1 and y2 is
+c(y1,y2) = 〈y1, y1〉+ 〈y2, y2〉 − 2〈y1, y2〉 =
+ds∑
+l=1
+(yl1 − yl2)2 −
+ds+dt∑
+l=ds+1
+(yl1 − yl2)2. (3)
+The space-time interval c(y1,y2) can be positive, zero or negative. With respect to a reference point
+y0 ∈ <ds,dt , the set {y : c(y,y0) = 0} is called a light cone. Figure 1a shows a light cone in
+<2,1. Within the light cone, c(y,y0) < 0, i. e., negative interval occurs; outside the light cone,
+c(y,y0) > 0. The following counter-intuitions help to establish the concept of space-time.
+A low-dimensional <ds,dt can accommodate an arbitrarily large number of events sharing a com-
+mon nearest neighbor. In <2,1, let A = (0, 0, 1), and put {B1,B2, . . . , } evenly on the circle
+{(y1, y2, 0) : (y1)2 + (y2)2 = 1} at time 0. Then, A is the unique nearest neighbor of B1,B2, . . . .
+A low-dimensional <ds,dt can represent uniform pair-wise similarities between an arbitrarily large
+number of points. In <1,1, the similarities within {Ai : Ai = (i, i)}ni=1 are uniform.
+In <ds,dt , the triangle inequality is not necessarily satisfied. In <2,1, let A = (−1, 0, 0), B =
+(0, 0, 1), C = (1, 0, 0). Then c(A,C) > c(A,B) + c(B,C). The trick is that, as B’s absolute
+time value increases, its intervals with all events at time 0 are shrinking. Correspondingly, similarity
+measures in <ds,dt can be non-transitive. The fact that B is similar to A and C independently does
+not necessarily mean that A and C are similar.
+A neighborhood of y0 ∈ <2,1 is {(y1, y2, y3) : (y1−y10)2+(y2−y20)2−(y3−y30)2 ≤ }, where  ∈
+<. This hyperboloid has infinite “volume”, no matter how small  is. Comparatively, a neighborhood
+in <d is much narrower, with an exponentially shrinking volume as its radius decreases.
+2
+lightcone
+y0
+space
+sp
+ac
+e
+t
+i
+m
+e
+(a)
+0
+t
+i
+m
+e
+space
+c = 1
+c = 0.5
+c =
+−0.5c =
+−1
+(b)
+p?
+g(K 2,1n )
+g(K 3,0n )
+p̂2,1
+p̂3,0
+∆n
+(c)
+Figure 1: (a) A space-time; (b) A space-time “compass” in <1,1. The colored lines show equal-
+interval contours with respect to the origin; (c) All possible embeddings in <2,1 (resp. <3) are
+mapped to a sub-manifold of ∆n, as shown by the red (resp. blue) line. Dimensionality reduction
+projects the input p? onto these sub-manifolds, e. g. by minimizing the KL divergence.
+3 The representation capability of space-time
+This section formally discusses some basic properties of <ds,dt in relation to dimensionality reduc-
+tion. We first build a tool to shift between two different representations of an embedding: a matrix
+of c(yi,yj) and a matrix of 〈yi,yj〉. From straightforward derivations, we have
+Lemma 1. Cn = {Cn×n : ∀i,Cii = 0; ∀i 6= j,Cij = Cji} and Kn = {Kn×n :
+∀i,∑nj=1 Kij = 0; ∀i 6= j,Kij = Kji} are two families of real symmetric matrices. dim(Cn) =
+dim(Kn) = n(n− 1)/2. A linear mapping from Cn to Kn and its inverse are given by
+K(C) = −1
+2
+(In −
+1
+n
+eeT )C(In −
+1
+n
+eeT ), C(K) = diag(K)eT + ediag(K)T − 2K, (4)
+where e = (1, · · · , 1)T , and diag(K) means the diagonal entries of K as a column vector.
+Cn and Kn are the sets of interval matrices and “pseudo-Gram” matrices, respectively [3, 12]. In
+particular, a p. s. d. K ∈ Kn means a Gram matrix, and the corresponding C(K) means a square
+distance matrix. The double centering mapping K(C) is widely used to generate a (pseudo-)Gram
+matrix from a dissimilarity matrix.
+Proposition 2. ∀C? ∈ Cn, ∃ n events in <ds,dt , s. t. ds + dt ≤ n− 1 and their intervals are C?.
+Proof. ∀C? ∈ Cn, K? = K(C?) has the eigen-decomposition K? =
+∑rank(K?)
+l=1 λ
+?
+l v
+?
+l (v
+?
+l )
+T
+where rank(K?) ≤ n− 1 and {v?l } are orthonormal. For each l = 1, · · · , rank(K?),
+√
+|λ?l |v?l
+gives the coordinates in one dimension, which is space-like if λ?l > 0 or time-like if λ
+?
+l < 0.
+Remark 2.1. <ds,dt (ds+dt ≤ n− 1) can represent any interval matrix C? ∈ Cn, or equivalently,
+any K? ∈ Kn. Comparatively, <d (d ≤ n− 1) can only represent {K ∈ Kn : K  0}.
+A pair-wise distance matrix in <d is invariant to rotations. In other words, the direction information
+of a point cloud is completely discarded. In <ds,dt , some direction information is kept to distinguish
+between space-like and time-like dimensions. As shown in fig. 1b, one can tell the direction in <1,1
+by moving a point along the curve {(y1)2 + (y2)2 = 1} and measuring its interval w. r. t. the origin.
+Local embedding techniques often use similarity measures in a statistical simplex ∆n ={
+p = (pij) : 1 ≤ i ≤ n; 1 ≤ j ≤ n; i < j; ∀i, ∀j, pij > 0;
+∑
+i,j:i<j pij = 1
+}
+. This ∆n has one
+less dimension than Cn and Kn so that dim(∆n) = n(n− 1)/2− 1. A mapping from Kn (Cn) to
+∆n is given by
+pij ∝ f (Cij(K)), (5)
+where f(·) is a positive-valued strictly monotonically decreasing function, so that a large probability
+mass is assigned to a pair of events with a small interval. Proposition 2 trivially extends to
+Proposition 3. ∀p? ∈ ∆n, ∃ n events in <ds,dt , s. t. ds + dt ≤ n− 1 and their similarities are p?.
+Remark 3.1. <ds,dt (ds + dt ≤ n− 1) can represent any n× n symmetric positive similarities.
+3
+Typically in eq. (5) we have f(x) = exp (−x). The pre-image in Cn of any given p? ∈ ∆n is
+the curve
+{
+C? + 2δ
+(
+eeT − In
+)
+: ∀i 6= j,C?ij = − ln p?ij ; δ ∈ <
+}
+, where 2δ
+(
+eeT − In
+)
+means
+a uniform increment on the off-diagonal entries of C?. By eq. (4), the corresponding curve in
+Kn is
+{
+K?(δ) = K? + δ
+(
+In − 1neeT
+)
+: δ ∈ <
+}
+, where K?(0) = K? = K(C?). Because(
+In − 1neeT
+)
+shares with K? a common eigenvector e with zero eigenvalue, and the rest eigen-
+values are all 1, there exist orthonormal vectors {v?l }n−1l=1 and real numbers {λ?l }
+rank(K?)
+l=1 , s. t.
+K? =
+∑rank(K?)
+l=1 λ
+?
+l v
+?
+l (v
+?
+l )
+T , and
+(
+In − 1neeT
+)
+=
+∑n−1
+l=1 v
+?
+l (v
+?
+l )
+T . Therefore
+K?(δ) =
+rank(K?)∑
+l=1
+(λ?l + δ)v
+?
+l (v
+?
+l )
+T +
+n−1∑
+l=rank(K?)+1
+δv?l (v
+?
+l )
+T . (6)
+Depending on δ, K?(δ) can be negative definite, positive definite, or somewhere in between. This
+is summarized in the following theorem.
+Theorem 4. If f(x) = exp(−x) in eq. (5), the pre-image in Kn of ∀p? ∈ ∆n is a continuous curve
+{K?(δ) : δ ∈ <}. ∃δ0, δ1 ∈ <, s. t. ∀δ < δ0, K?(δ) ≺ 0, ∀δ > δ1, K?(δ)  0, and the number
+of positive eigenvalues of K?(δ) increases monotonically with δ.
+With enough dimensions, any p? ∈ ∆n can be perfectly represented in a space-only, or time-
+only, or space-time-mixed <ds,dt . There is no particular reason to favor a space-only model,
+because the objective of dimensionality reduction is to get a compact model with a small num-
+ber of dimensions, regardless of whether they are space-like or time-like. Formally, K ds,dtn =
+{K+ −K− : rank(K+) ≤ ds; rank(K−) ≤ dt; K+  0; K−  0} is a low-rank subset of
+Kn. In the domain Kn, dimensionality reduction based on the input p? finds some K̂ds,dt ∈
+K ds,dtn , which is close to the curve K
+?(δ).
+In the probability domain ∆n, the image of K ds,dtn under some mapping g : Kn → ∆n is
+g(K ds,dtn ). As shown in fig. 1c, dimensionality reduction finds some p̂
+ds,dt ∈ g(K ds,dtn ), so
+that p̂ds,dt is the closest point to p? w. r. t. some information theoretic measure. The proximity
+of p? to p̂ds,dt , i. e. its proximity to g(K ds,dtn ), measures the quality of the model <ds,dt as the
+embedding target space, when the model scale or the number of dimensions is given.
+We will investigate the latter approach, which depends on the choice of ds, dt, the mapping g, and
+some proximity measure on ∆n. We will show that, with the same number of dimensions ds + dt,
+the region g(K ds,dtn ) with space-time-mixed dimensions is naturally close to certain input p
+?.
+4 Space-time local embeddings
+We project a given similarity matrix p? ∈ ∆n to some K̂ ∈ K ds,dtn , or equivalently, to a set of
+events Y = {yi}ni=1 ⊂ <ds,dt , so that ∀i, ∀j, 〈yi,yj〉 = K̂ij as in eq. (2), and the similarities
+among these events resemble p?. As discussed in section 3, a mapping g : Kn → ∆n helps transfer
+K ds,dtn into a sub-manifold of ∆n, so that the projection can be done inside ∆n. This mapping
+expressed in the event coordinates is given by
+pij(Y ) ∝
+exp
+(
+‖yti − ytj‖2
+)
+1 + ‖ysi − ysj‖2
+, (7)
+where ys = (y1, . . . , yds)T , yt = (yds+1, . . . , yds+dt)T , and ‖ · ‖ denotes the 2-norm. For any pair
+of events yi and yj , pij(Y ) increases when their space coordinates move close, and/or when their
+time coordinates move away. This agrees with the basic intuitions of space-time. For time-like di-
+mensions, the heat kernel is used to make pij(Y ) sensitive to time variations. This helps to suppress
+events with large absolute time values, which make the embedding less interpretable. For space-like
+dimensions, the Student-t kernel, as suggested by t-SNE [13], is used, so that there could be more
+“volume” to accommodate the often high-dimensional input data. Based on our experience, this
+hybrid parametrization of pij(Y ) can better model real data as compared to alternative parametriza-
+tions. Similar to SNE [4] and t-SNE [13], an optimal embedding can be obtained by minimizing the
+Kullback-Leibler (KL) divergence from the input p? to the output p(Y ), given by
+KL(Y ) =
+∑
+i,j:i<j
+p?ij ln
+p?ij
+pij(Y )
+. (8)
+4
+According to some straightforward derivations, its gradients are
+∂KL
+∂yti
+= −2
+∑
+j:j 6=i
+(
+p?ij − pij(Y )
+) (
+yti − ytj
+)
+, (9)
+∂KL
+∂ysi
+= 2
+∑
+j:j 6=i
+1
+1 + ‖ysi − ysj‖2
+(
+p?ij − pij(Y )
+) (
+ysi − ysj
+)
+, (10)
+where ∀i, ∀j, p?ij = p?ji and pij(Y ) = pji(Y ). As an intuitive interpretation of a gradient descent
+process w. r. t. eqs. (9) and (10), we have that if pij(Y ) < p?ij , i. e. yi and yj are put too far
+from each other, then ysi and y
+s
+j are attracting, and y
+t
+i and y
+t
+j are repelling, so that their space-time
+interval becomes shorter; if pij(Y ) > p?ij , then yi and yj are repelling in space and attracting in
+time.
+During gradient descent, {ysi } are updated by the delta-bar-delta scheme as used in t-SNE [13],
+where each scalar parameter has its own adaptive learning rate initialized to γs > 0; {yti} are
+updated based on one global adaptive learning rate initialized to γt > 0. The learning of time
+should be more cautious, because pij(Y ) is more sensitive to time variations by eq. (7). Therefore,
+the ratio γt/γs should be very small, e.g. 1/100.
+5 Empirical results
+Aiming at potential applications in data visualization and social network analysis, we compare
+SNE [4], t-SNE [13], and the method proposed in section 4 denoted as SNEST . They are based
+on the same optimizer but correspond to different sub-manifolds of ∆n, as presented by the curves
+in fig. 1c. Given different embeddings of the same dataset using the same number of dimensions,
+we perform model selection based on the KL divergence as explained in the end of section 3.
+We generated a toy dataset SCHOOL, representing a school with two classes. Each class has 20
+students standing evenly on a circle, where each student is communicating with his (her) 4 nearest
+neighbours, and one teacher, who is communicating with all the students in the same class and the
+teacher in the other class. The input p? is distributed evenly on the pairs (i, j) who are socially
+connected.
+NIPS22 contains a 4197 × 3624 author-document matrix from NIPS 1988 to 2009 [2]. After
+discarding the authors who have only one NIPS paper, we get 1418 authors who co-authored
+2121 papers. The co-authorship matrix is CA1418×1418, where CAij denotes the number of pa-
+pers that author i co-authored with author j. The input similarity p? is computed so that p?ij ∝
+CAij(1/
+∑
+j CAij + 1/
+∑
+i CAij), where the number of co-authored papers is normalized by each
+author’s total number of papers. NIPS17 is built in the same way using only the first 17 volumes.
+GrQc is an arXiv co-authorship graph [16] with 5242 nodes and 14496 edges. After removing
+one isolated node, a matrix CA5241×5241 gives the numbers of co-authored papers between any two
+authors who submitted to the general relativity and quantum cosmology category from January 1993
+to April 2003. The input similarity p? satisfies p?ij ∝ CAij(1/
+∑
+j CAij + 1/
+∑
+i CAij).
+W5000 is the semantic similarities among 5000 English words in WS5000×5000 [2, 17]. Each WSij
+is an asymmetric non-negative similarity from word i to word j. The input is normalized into a
+probability vector p? so that p?ij ∝ WSij/
+∑
+j WSij +WSji/
+∑
+i WSji. W1000 is built in the same way
+using a subset of 1000 words.
+Table 1 shows the KL divergence in eq. (8). In most cases, SNEST for a fixed number of free param-
+eters has the lowest KL. On NIPS22, GrQc, W1000 and W5000, the embedding by SNEST in <2,1
+is even better than SNE and t-SNE in <4, meaning that the embedding by SNEST is both compact
+and faithful. This is in contrast to the mixture approach for visualization [2], which multiplies the
+number of parameters to get a faithful representation.
+Fixing the free parameters to two dimensions, t-SNE in <2 has the best overall performance, and
+SNEST in <1,1 is worse. We also discovered that, using d dimensions, <d−1,1 usually performs
+better than alternative choices such as <d−2,2, which are not shown due to space limitation. A time-
+like dimension allows adaptation to non-metric data. The investigated similarities, however, are
+5
+Table 1: KL divergence of different embeddings. After repeated runs on different configurations for
+each embedding, the minimal KL that we have achieved within 5000 epochs is shown. The bold
+numbers show the winners among SNE, t-SNE and SNEST using the same number of parameters.
+SCHOOL NIPS17 NIPS22 GrQc W1000 W5000
+SNE→ <2 0.52 1.88 2.98 3.19 3.67 4.93
+SNE→ <3 0.36 0.85 1.79 1.82 3.20 4.42
+SNE→ <4 0.19 0.35 1.01 1.03 2.76 3.93
+t-SNE→ <2 0.61 0.88 1.29 1.24 2.15 3.00
+t-SNE→ <3 0.58 0.85 1.23 1.14 2.00 2.79
+t-SNE→ <4 0.58 0.84 1.22 1.11 1.96 2.74
+SNEST→ <1,1 0.43 0.91 1.62 2.34 2.59 3.64
+SNEST→ <2,1 0.31 0.60 0.97 1.00 1.92 2.57
+SNEST→ <3,1 0.29 0.54 0.93 0.88 1.79 2.39
+t
+i
+m
+e
+teachers
+(a)
+50 100 150 200
+‖ysi − ysj‖
+0
+1
+2
+‖y
+t i
+−
+yt j
+‖
+0.
+1
+1
+10
+10
+0
+exp(‖yti − ytj‖2)/(1 + ‖ysi − ysj‖2)
+0
+50
+100
+(b)
+Figure 2: (a) The embedding of SCHOOL by SNEST in <2,1. The black (resp. colored) dots denote
+the students (resp. teachers). The paper coordinates (resp. color) mean the space (resp. time)
+coordinates. The links mean social connections. (b) The contour of
+exp(‖yti−y
+t
+j‖
+2)
+1+‖ysi−ysj‖2
+in eq. (7) as a
+function of ‖ysi − ysj‖ (x-axis) and ‖yti − ytj‖ (y-axis). The unit of the displayed levels is 10−3.
+mainly space-like, in the sense that a random pair of people or words are more likely to be dissimilar
+(space-like) rather than similar (time-like). According to our experience, on such datasets, good
+performance is often achieved with mainly space-like dimensions mixed with a small number of
+time-dimensions, e.g. <2,1 or <3,1 as suggested by table 1.
+To interpret the embeddings, fig. 2a presents the embedding of SCHOOL in <2,1, where the space
+and time are represented by paper coordinates and three colors levels, respectively. Each class is
+embedded as a circle. The center of each class, the teacher, is lifted to a different time, so as to be
+near to all students in the same class. One teacher being blue, while the other being red, creates a
+“hyper-link” between the teachers, because their large time difference makes them nearby in <2,1.
+Figures 3 and 4 show the embeddings of NIPS22 and W5000 in <2,1. Similar to the (t-)SNE
+visualizations [2, 4, 13], it is easy to find close authors or words embedded nearby. The learned
+p(Y ), however, is not equivalent to the visual proximity, because of the counter-intuitive time di-
+mension. How much does the visual proximity reflect the underlying p(Y )? From the histogram
+of the time coordinates, we see that the time values are in the narrow range [−1.5, 1.5], while the
+range of the space coordinates is at least 100 times larger. Figure 2b shows the similarity function
+on the right-hand-side of eq. (7) over an interesting range of ‖ysi −ysj‖ and ‖yti−ytj‖. In this range,
+large similarity values are very sensitive to space variations, and their red level curves are almost
+vertical, meaning that the similarity information is largely carried by space coordinates. Therefore,
+the visualization of neighborhoods is relatively accurate: visually nearby points are indeed similar;
+proximity in a neighborhood is informative regarding p(Y ). On the other hand, small similarity val-
+ues are less sensitive to space variations, and their blue level curves span a large distance in space,
+meaning that the visual distance between dissimilar points is less informative regarding p(Y ). For
+6
+−250 −150 0 150 250
+−250
+−150
+0
+150
+250
+Achan
+Amari
+Atiya
+Atkeson
+Attias
+Bach
+Baldi
+Ballard
+Barber
+Bartlett
+Barto
+Beck
+Bengio
+Bengio
+Bialek
+Bishop
+Black
+Blair
+Blei
+Bower
+Bradley
+Buhmann
+Caruana
+Cauwenberghs
+Chapelle
+Cohn
+Cottrell
+Courville
+Cowan
+Crammer
+Cristianini
+Darrell
+Das
+Dayan
+DeFreitas
+DeWeese
+Denker
+Doya
+Frasconi
+Freeman
+Frey
+Fukumizu
+Gerstner
+Ghahramani
+Giles
+Goldstein
+Gordon
+Graepel
+Gray
+Gretton
+Griffiths
+Grimes
+Gupta
+Hasler
+Hastie
+Herbrich
+Hinton
+Hochreiter
+Hofmann
+Horn
+Jaakkola
+Jin
+Johnson
+Jordan
+Kakade
+Kawato
+KearnsKoch
+Koller
+Lafferty
+LeCun
+Lee
+Lee
+Lee
+Leen
+Lewicki
+Li
+Lippmann
+Liu
+Maass
+Malik
+Marchand
+Meir
+Mel
+Minch
+Mitchell
+Mjolsness
+Mohri
+Montague
+Moody
+Moore
+Morgan
+Movellan
+Mozer
+Muller
+Murray
+Ng
+Nowlan
+Obermayer
+Opper
+Pearlmutter
+Pillow
+Platt
+Poggio
+Pouget
+Rahimi
+Rao
+Rasmussen
+Ratsch
+Riesenhuber
+Rosenfeld
+Roth
+Roweis
+Rumelhart
+Ruppin
+Saad
+Sahani
+Saul
+Scholkopf
+Schraudolph
+Schuurmans
+Scott Seeger
+Sejnowski
+Seung
+Shawe-Taylor
+Simard
+Simoncelli
+Singer
+Singh
+Smith
+Smola
+Smyth
+Sollich
+Stevens
+Sun
+Sutton
+Teh
+Tenenbaum
+Tesauro
+Thrun
+Tishby
+Touretzky
+Tresp
+Vapnik
+Viola
+Waibel
+Wainwright
+Wang
+Wang
+Warmuth
+Weinshall
+Weiss
+Welling
+WestonWilliams
+Williamson
+Willsky
+Winther
+Xing
+Yu
+Yuille
+Zador
+Zemel
+Zhang
+Zhang
+Sminchisescu
+Grauman
+Garrigues
+Kim
+Kulis
+−1.5 0.0 1.5
+50
+100
+150
+200
+250
+histogram of time coordinates
+<-1.0
+-0.5
+0
+0.5
+>1.0
+--
+-t
+im
+e
+--
+>
+Figure 3: An embedding of NIPS22 in <2,1. “Major authors” with at least 10 NIPS papers or with
+a time value in the range (−∞,−1] ∪ [1,∞) are shown by their names. Other authors are shown
+by small dots. The paper coordinates are in space-like dimensions. The positions of the displayed
+names are adjusted up to a tiny radius to avoid text overlap. The color of each name represents the
+time dimension. The font size is proportional to the absolute time value.
+example, a visual distance of 165 with a time difference of 1 has roughly the same similarity as a
+visual distance of 100 with no time difference. This is a matter of embedding dissimilar samples far
+or very far and does not affect much the visual perception, which naturally requires less accuracy on
+such samples. However, perception errors could still occur in these plots, although they are increas-
+ingly unlikely as the observation radius turns small. In viewing such visualizations, one must count
+in the time represented by the colors and font sizes, and remember that a point with a large absolute
+time value should be weighted higher in similarity judgment.
+Consider the learning of yi by eq. (9), if the input p?ij is larger than what can be faithfully modeled
+in a space-only model, then j will push i to a different time. Therefore, the absolute value of time
+is a significance measurement. By fig. 2a, the connection hubs, and points with remote connections,
+are more likely to be at a different time. Emphasizing the embedding points with large absolute time
+values helps the user to focus on important points. One can easily identify well-known authors and
+popular words in figs. 3 and 4. This type of information is not discovered by traditional embeddings.
+6 Conclusions and Discussions
+We advocate the use of space-time representation for non-metric data. While previous works on
+such embeddings [3, 12] compute an indefinite kernel by simple transformations of the input data,
+we learn a low-rank indefinite kernel by manifold learning, trying to better preserve the neigh-
+7
+−150 −100 −50 0 50 100 150
+−150
+−100
+−50
+0
+50
+100
+150
+FIELD
+COMPUTER
+BODY
+CONDEMN
+DISOWN
+RANGE
+INTENSITY
+ATTENTION
+BE
+CHEERLEADER
+CHICKEN
+CONFUSION
+CRISIS
+CULTURE
+GRACE
+HANG
+HOBBY
+PARSLEY
+RESISTANCE
+ANIMAL
+BEAR
+CLEANING
+DECENCY
+DRUGS
+EXERCISE
+HIDDEN
+IMPATIENCE
+MADE
+PLAN
+POEM
+RESTORE
+SALESMAN
+SPLIT
+BLOCK
+CLEANER
+EGO
+EVERYDAY
+GRADUATION
+LACK
+MAIN
+MANAGEMENT
+MEDICINE
+MOVE
+NERVES
+PROFESSIONAL
+RABBIT
+RARE
+REASON
+RENOUNCE
+RETREAT
+RUNNER
+SUPERSTITION
+THERAPY
+TRAUMA
+ATTRACT
+CLAIMS
+CLOTHES
+DISBELIEVE
+FORT
+FRAY
+FREE
+MOLE
+NORM
+OUTLINE
+PROTEIN
+RAPE
+REBEL
+RESPECT
+SALES
+SCAR
+SHED
+SPY
+STROKE
+TRAITOR
+UNION
+WOOD
+WORTHLESS
+BARREL
+CAR
+CHISEL
+CONGRESS
+CONSEQUENCE
+COVERED
+DARING
+DECORATE
+DIFFERENCE
+DUE
+ELABORATE
+EMPIRE
+EXCEL
+EXTRAVAGANT
+FAIR
+FAMILY
+FLAP
+FOG
+FUZZ
+HIGHLIGHT
+HONOR
+IMPORTANT
+IMPRESSION
+ITALIAN
+KEEPER
+MUSIC
+NATURAL
+PARADE
+PASSAGE
+PERSONALITY
+PLUG
+POLICEMAN
+POTENTIAL
+PROCESS
+SAUSAGE
+SCIENTIFIC
+SEAL
+SPACE
+SUPPORT
+SUSPENSE
+THEORY
+TOURIST
+TRAVEL
+TUBE
+ANNOYING
+ASSOCIATE
+AWARD
+BUSY
+CAPTURE
+CLAY
+COMFORT
+COMMUNIST
+COMPULSION
+CONFUSE
+CRIME
+CRUNCH
+DETERIORATE
+DIRECTION
+DOMINATE
+DOWNTOWN
+ELIMINATION
+ENGINEER
+EUROPE
+EVALUATE
+FACTORY
+FISH
+FREEDOM
+FRONTIER
+GHOST
+GROW
+HOLE
+ISSUE
+KIDS
+LACE
+MAFIA
+MASTER
+MINT
+NERVE
+OATMEAL
+PERFORMANCE
+PERISH
+PRESENTATION
+PROVE
+PUBERTY
+RACK
+RIGHTEOUSNESS
+ROAD
+SNEAK
+STAIN
+STICK
+SWAMP
+TABOO
+TEND
+TOPPING
+VIOLENT
+WARN
+WORRY
+BIRD
+BLOW
+BOND
+BUMPS
+CAPACITY
+COMMON
+CONTROLS
+COVER
+CREATIVITY
+CROOKED
+DANCER
+DELAY
+DEPLETION
+DICE
+DISASTER
+DISCIPLINE
+DISTINCT
+DOOR
+DRAGON
+EMERGENCY
+FAITHFUL
+FOOTBALL
+GET
+GOD
+GRIND
+GROWTH
+HOROSCOPE
+INVENTOR
+IRON
+JEWISH
+LABEL
+LOBSTER
+MEASURE
+OPINION
+PAINTER
+PINK
+PLASTIC
+PLUSH
+POTATO
+PRECIOUS
+PROJECT
+PROOF
+PROTECTION
+RANK
+RECEIPT
+REDUCE
+RETURN
+RIBS
+SCUM
+SENSITIVE
+SPIKE
+SPIT
+STAFF
+STRIPE
+STUBBORN
+STYLE
+SUGGEST
+TILL
+TROPICAL
+UNSURE
+WORM
+WRESTLING
+ABSENCE
+BEER
+BISCUIT
+BLAME
+BOWL
+COAST
+COMPOUND
+CORNER
+CRITICISM
+DANGEROUS
+DILIGENCE
+ELECTRICIAN
+ELEGANT
+ELF
+EVENT
+EXTREME
+FORBID
+GRAVE
+HELPFUL
+HORMONES
+INTEREST
+KITCHEN
+LEADER
+LEAN
+LEO
+LIMP
+LUXURY
+MAIDEN
+MARBLE
+MONKEY
+MORAL
+MUSCLE
+NEGOTIATION
+ORDER
+PANIC
+PANTS
+PARENTS
+PARTY
+PASTRY
+PERCENT
+PIG
+PINCH
+PLACE
+POPULAR
+PROTECT
+RECKLESS
+REGRET
+REPLACE
+RESPONSIBILITY
+SCENERY
+SILVERWARE
+SOAP
+STOLEN
+SWING
+THINK
+THRESHOLD
+TRADE
+UNEVEN
+USE
+WINE
+ABUNDANCE
+ATTEND
+ATTIC
+BALLOON
+BATTERY
+BIRDS
+BOARD
+BUFFALO
+BUM
+CARD
+CHALLENGE
+CLAMP
+COLESLAW
+COOKED
+CREW
+CUE
+DECISION
+DISMAY
+ECONOMIC
+ENVIRONMENT
+FAVOR
+FIT
+FLOWER
+GENERAL
+GLIDE
+HARDY
+HEALTH
+HIKER
+HISTORY
+JAPAN
+LEVEL
+LIFT
+LIMIT
+LIZARD
+MAKE UP
+MISCHIEF
+MISSILE
+MIXED
+NEUTRAL
+NOT
+OBNOXIOUS
+OUTDOORS
+OVERFLOW
+PIE
+POISE
+POSSIBLE
+RATE
+REACTION
+REVIVAL
+SECRETARY
+SEW
+SKILL
+SMEAR
+SOUTHERN
+SPEAKER
+SPELL
+SQUEEZE
+STIMULUS
+STRAWBERRY
+SYMBOL
+TIP
+TREE
+TWELVE
+UNDERSTANDING
+UNLOAD
+VASELINE
+VIOLATION
+VOTE
+WASTED
+WELCOME
+ACCIDENT
+ACCUMULATE
+AFTERNOON
+ANARCHY
+BASE
+BEYOND
+BLACKMAIL
+BLOOD
+BREAST
+BREEZEWAY
+BROWN
+BUILDING
+BUTTERFLY
+CAST
+CHARITY
+CHUCK
+CLEAR
+CODE
+COURSECRUSH
+DATE
+DISGUST
+DISPERSE
+DO
+DRIFT
+DRUG
+ECSTASY
+EGG
+ENDLESS
+ENTERTAIN
+ESSENCE
+EVICT
+EXPLORER
+FATTENING
+FLOWERS
+FORBIDDEN
+FOREIGN
+FUSS
+GHETTO
+GIVE UP
+GONE
+HANDLE
+INTAKE
+INTIMATE
+LANDSCAPE
+LOVERS
+MILD
+MIXTURE
+MOTORCYCLE
+NONSENSE
+ORANGE JUICE
+OUTRAGEOUS
+PEACEFUL
+PILE
+PLAIN
+PREDATOR
+REPENTANCE
+RIVER
+ROCKS
+RUBBER
+SERIOUS
+SHAKE
+SHARK
+SINGER
+SINKER
+SNEAKY
+SPECIFIC
+SPRAY
+SQUASH
+STRANGER
+TEN
+TONE
+UNIFORM
+VOID
+WOLF
+ACCOMPLISHED
+AD
+AFFAIR
+ALONE
+ARTS
+BABY
+BACTERIA
+BITE
+BRIEFCASE
+CAPTION
+CHANCE
+CLAM
+COLD
+DAMP
+DELIVER
+DOCTOR
+DRAIN
+DRILL
+DRUNK
+DUCKS
+ELEPHANT
+ESCAPE
+EXPERIENCE
+EYEBALL
+FAKE
+FIGURE
+FLUTE
+FLY
+FOLD
+FOUL
+FUSE
+GARLIC
+GLOVES
+GREEK
+HAIR
+HAIRCUT
+HANDKERCHIEF
+INFLATION
+LEARN
+MATH
+MEANING
+MICROSCOPE
+MONEY
+MOUT
+NECK
+OPPONENT
+ORIENT
+OUTSTANDING
+PAT
+PLEASE
+RAT
+RITUAL
+STICKER
+SWIMMER
+TEAPOT
+TELEVISION
+TOGETHE
+TRAIN
+TREAT
+WASTE
+WRITER
+ADMIT
+APARTMENT
+AURA
+AUTHORITY
+AWARE
+AX
+BEG
+BROKE
+CHART
+COMMANDER
+COSTUME
+CRACKER
+CROSS
+CUTE
+DAMN
+DARE
+DEER
+DEFENSE
+DELIGHT
+DIAMETER
+DOLPHIN
+EFFORT
+ENGAGE
+EXTRA
+FEELING
+FILL
+FRY
+GIVING
+GOO
+GULLY
+GUN
+HAY
+HIKING
+HIT
+HYPNOTIZE
+IMITATE
+INDEPENDENT
+INTESTINE
+LEGAL
+LEMONADE
+LIVER
+MARINES
+MEET
+MILK
+NOMAD
+OATH
+OFTEN
+PANTYHOSE
+PERFECT
+PLANETS
+POUR
+PROFESSION
+RAIN
+RECENT
+RELIEF
+REPEAT
+ROBE
+SENSE
+SHADOW
+SLIVER
+SLURP SPONTANEOUS
+STAIRS
+STEAM
+STIFF
+STINGY
+SUPERMAN
+TEMPER
+THESIS
+TURTLE
+VALVE
+VEER
+WAKE
+WATER
+WELFARE
+WRAP
+ANOTHER
+APPLE
+BAG
+BAT
+BLENDER
+BLOCKADE
+BUS
+CAMPING
+CLUMSY
+COAT
+CONSOLE
+COUNTER
+COURT
+CURTAINS
+DIRECT
+DIVISION
+GOODS HELPER
+HOSTESS
+IDENTITY
+INDIAN
+INTEGRITY
+KEEP
+LUNCH
+MARINE
+MUSTY
+OIL
+OZONE
+PADDY
+PENGUIN
+PERSUADE
+ROACH
+ROYAL
+RUNNING
+SERIESSHEEP
+SUNDAY
+SUNSHINE
+TAIL
+TART
+TELEPHONE
+TELESCOPE
+TRUCK
+VALUE
+VODKA
+WANDER
+AFFECT
+ANKLE
+BOAT
+CART
+CHEEK
+DISCOVER
+DUNK
+DUST
+EGYPT
+ERA
+EXCISE
+EXPRESSFUMES
+HAND
+HAUL
+HEAT
+HEDGE
+HORSE
+HOTEL
+IMAGE
+LOVER
+MENTHOL
+MESSAGE
+MOLASSES
+MOTION
+POSSESSION
+QUALITY
+SCREEN
+SCRIBBLE
+SHY
+SIGNAL
+SISTER
+SNAP
+SOME
+TAR
+TASTY
+UNICORN
+AHOY
+BICYCLE
+BOIL
+BOUND
+BRITTLE
+CHANGE
+CHINESE
+CONTEMPORARY
+CONTEXT
+COWGIRL
+CUPBOARD
+EXPLODE
+FIREPLACE
+FRAIL
+FRUSTRATE
+HELICOPTER
+HUNGER
+IDOL
+INNOCENCE
+INSTANCE
+LAKE
+LICK
+LOFT
+MEMORY
+MINER
+NOTHING
+NUN
+PROVERB
+PROVISION
+QUARTER
+RADIATOR
+SALUTE
+SINCE
+SLUG
+WIDE
+ACCOUNT
+ANGEL
+BASS
+BOXER
+CATTLE
+CHAMPION
+CHASE
+CORN
+DESCENTDRAFT
+EINSTEIN
+FAVORITE
+FEATHER
+FEVER FIREMAN
+FLEET
+GRASSHOPPER
+HOT DOGS
+JUNIOR
+LEAD
+LIGHTNING
+MAROON
+MAXIMUM
+ORIGINATE
+PERSON
+PIANO
+PIZZA
+POUND
+RED
+RESTRICTION
+SHOP
+SHUTTER
+SITTING
+SNOW
+SPOIL
+SQUID
+STALL
+SUNSET
+TALE
+ERMINAL
+TIRED
+TRAILER
+TURKEY
+WATERFALL
+ZIT
+AARDVARK
+BEARD
+BIRTH
+BOOT
+BOOTS
+BREATH
+BUZZ
+CYLINDER
+DOWNSTAIRS
+FOR
+HANDBAG
+HEADACHE
+HOCKEY
+KEYS
+LONG
+MAJORITY
+OPENING
+PRIME
+PRONOUN
+RECLINER
+SHOT
+SMELL
+SPADE
+STABLE
+SUBMARINE
+TARGET
+THIRSTY
+TOOTHPASTE
+WEEK
+ANNIHILATE
+BACK
+BORROW
+CENTS
+COCA-COLA
+COMPONENTS
+COOL
+ELDERS
+HANDICAP
+PALE
+RAM
+RIDER
+SCREAM
+SPIDER
+SUPERMARKET
+ADD
+CORAL
+CRANE
+CUBE
+EAGLE
+GROOM
+HOOP
+LAVA
+LEMON
+NEPHEW
+SAUCER
+VALENTINE
+WHO
+ANISETTE
+BET
+BOY
+BRAKE
+CRATER
+MONARCH
+PARENT
+WASP
+DEFEAT
+DRYER
+GOING
+HARBOR
+MAN
+PARROT
+SMALL
+STRAY
+ADDITION
+EMERALD
+HER
+SABER
+SWOON
+ADORE
+SALOON
+THIRST
+SWABS
+NEST
+PROFIT
+DILL
+−1.5 0.0 1.5
+500
+1000
+histogram of time coordinates
+<-0.8
+-0.4
+0
+0.4
+>0.8
+--
+-t
+im
+e
+--
+>
+Figure 4: An embedding of W5000 in <2,1. Only a subset is shown for a clear visualization. The
+position of each word represents its space coordinates up to tiny adjustments to avoid overlap. The
+color of each word shows its time value. The font size represents the absolute time value.
+bours [4]. We discovered that, using the same number of dimensions, certain input information is
+better preserved in space-time than Euclidean space. We built a space-time visualizer of non-metric
+data, which automatically discovers important points.
+To enhance the proposed visualization, an interactive interface can allow the user select one ref-
+erence point, and show the true similarity values, e.g., by aligning other points so that the visual
+distances correspond to the similarities. Proper constraints or regularization could be proposed, so
+that the time values are discrete or sparse, and the resulting embedding can be more easily inter-
+preted.
+The proposed learning is on a sub-manifold K ds,dtn ⊂ Kn, or a corresponding sub-manifold of ∆n.
+Another interesting sub-manifold of Kn could be
+{
+K − ttT : K  0; t ∈ <n
+}
+, which extends the
+p. s. d. cone to any matrix in Kn with a compact negative eigen-spectrum. It is possible to construct
+a sub-manifold of Kn so that the embedder can learn whether a dimension is space-like or time-like.
+As another axis of future investigation, given the large family of manifold learners, there can be many
+ways to project the input information onto these sub-manifolds. The proposed method SNEST is
+based on the KL divergence in ∆n. Some immediate extensions can be based on other dissimilarity
+measures in Kn or ∆n. This could also be useful for faithful representations of graph datasets with
+indefinite weights.
+Acknowledgments
+This work has been supported be the Department of Computer Science, University of Geneva, in
+collaboration with Swiss National Science Foundation Project MAAYA (Grant number 144238).
+8
+References
+[1] K. Zeger and A. Gersho. How many points in Euclidean space can have a common nearest
+neighbor? In International Symposium on Information Theory, page 109, 1994.
+[2] L. van der Maaten and G. E. Hinton. Visualizing non-metric similarities in multiple maps.
+Machine Learning, 87(1):33–55, 2012.
+[3] J. Laub and K. R. Müller. Feature discovery in non-metric pairwise data. JMLR, 5(Jul):801–
+818, 2004.
+[4] G. E. Hinton and S. T. Roweis. Stochastic neighbor embedding. In NIPS 15, pages 833–840.
+MIT Press, 2003.
+[5] J. Cook, I. Sutskever, A. Mnih, and G. E. Hinton. Visualizing similarity data with a mixture of
+maps. In AISTATS’07, pages 67–74, 2007.
+[6] J. Jost. Riemannian Geometry and Geometric Analysis. Universitext. Springer, 6th edition,
+2011.
+[7] R. C. Wilson, E. R. Hancock, E. Pekalska, and R. P. W. Duin. Spherical embeddings for
+non-Euclidean dissimilarities. In CVPR’10, pages 1903–1910, 2010.
+[8] D. Lunga and O. Ersoy. Spherical stochastic neighbor embedding of hyperspectral data. Geo-
+science and Remote Sensing, IEEE Transactions on, 51(2):857–871, 2013.
+[9] B. O’Neill. Semi-Riemannian Geometry With Applications to Relativity. Number 103 in Series:
+Pure and Applied Mathematics. Academic Press, 1983.
+[10] L. Goldfarb. A unified approach to pattern recognition. Pattern Recognition, 17(5):575–582,
+1984.
+[11] E. Pekalska and R. P. W. Duin. The Dissimilarity Representation for Pattern Recognition:
+Foundations and Applications. World Scientific, 2005.
+[12] J. Laub, J. Macke, K. R. Müller, and F. A. Wichmann. Inducing metric violations in human
+similarity judgements. In NIPS 19, pages 777–784. MIT Press, 2007.
+[13] L. van der Maaten and G. E. Hinton. Visualizing data using t-SNE. JMLR, 9(Nov):2579–2605,
+2008.
+[14] N. D. Lawrence. Spectral dimensionality reduction via maximum entropy. In AISTATS’11,
+JMLR W&CP 15, pages 51–59, 2011.
+[15] K. Q. Weinberger, F. Sha, and L. K. Saul. Learning a kernel matrix for nonlinear dimensionality
+reduction. In ICML’04, pages 839–846, 2004.
+[16] J. Leskovec, J. Kleinberg, and C. Faloutsos. Graph evolution: Densification and shrinking
+diameters. ACM Transactions on Knowledge Discovery from Data, 1(1), 2007.
+[17] D. L. Nelson, C. L. McEvoy, and T. A Schreiber. The university of South Florida
+word association, rhyme, and word fragment norms. 1998. http://www.usf.edu/
+FreeAssociation.
+9
