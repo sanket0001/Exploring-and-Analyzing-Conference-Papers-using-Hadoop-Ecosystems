@@ -1,0 +1,1047 @@
+
+
+
+Paper ID = 5807
+Title = Policy Evaluation Using the Ω-Return
+Philip S. Thomas
+University of Massachusetts Amherst
+Carnegie Mellon University
+Scott Niekum
+University of Texas at Austin
+Georgios Theocharous
+Adobe Research
+George Konidaris
+Duke University
+Abstract
+We propose the Ω-return as an alternative to the λ-return currently used by the
+TD(λ) family of algorithms. The benefit of the Ω-return is that it accounts for
+the correlation of different length returns. Because it is difficult to compute ex-
+actly, we suggest one way of approximating the Ω-return. We provide empirical
+studies that suggest that it is superior to the λ-return and γ-return for a variety of
+problems.
+1 Introduction
+Most reinforcement learning (RL) algorithms learn a value function—a function that estimates the
+expected return obtained by following a given policy from a given state. Efficient algorithms for esti-
+mating the value function have therefore been a primary focus of RL research. The most widely used
+family of RL algorithms, the TD(λ) family [1], forms an estimate of return (called the λ-return) that
+blends low-variance but biased temporal difference return estimates with high-variance but unbiased
+Monte Carlo return estimates, using a parameter λ ∈ [0, 1]. While several different algorithms exist
+within the TD(λ) family—the original linear-time algorithm [1], least-squares formulations [2], and
+methods for adapting λ [3], among others—the λ-return formulation has remained unchanged since
+its introduction in 1988 [1].
+Recently Konidaris et al. [4] proposed the γ-return as an alternative to the λ-return, which uses a
+more accurate model of how the variance of a return increases with its length. However, both the γ
+and λ-returns fail to account for the correlation of returns of different lengths, instead treating them
+as statistically independent. We propose the Ω-return, which uses well-studied statistical techniques
+to directly account for the correlation of returns of different lengths. However, unlike the λ and
+γ-returns, the Ω-return is not simple to compute, and often can only be approximated. We propose a
+method for approximating the Ω-return, and show that it outperforms the λ and γ-returns on a range
+of off-policy evaluation problems.
+2 Complex Backups
+Estimates of return lie at the heart of value-function based RL algorithms: an estimate, V̂ π , of the
+value function, V π , estimates return from each state, and the learning process aims to reduce the
+error between estimated and observed returns. For brevity we suppress the dependencies of V π and
+V̂ π on π and write V and V̂ . Temporal difference (TD) algorithms use an estimate of the return
+obtained by taking a single transition in the Markov decision process (MDP) [5] and then estimating
+the remaining return using the estimate of the value function:
+RTDst = rt + γV̂ (st+1),
+1
+where RTDst is the return estimate from state st, rt is the reward for going from st to st+1 via action
+at, and γ ∈ [0, 1] is a discount parameter. Monte Carlo algorithms (for episodic tasks) do not use
+intermediate estimates but instead use the full return,
+RMCst =
+L−1∑
+i=0
+γirt+i,
+for an episode L transitions in length after time t (we assume that L is finite). These two types of
+return estimates can be considered instances of the more general notion of an n-step return,
+R(n)st =
+(
+n−1∑
+i=0
+γirt+i
+)
++ γnV̂ (st+n),
+for n ≥ 1. Here, n transitions are observed from the MDP and the remaining portion of return is
+estimated using the estimate of the value function. Since st+L is a state that occurs after the end of
+an episode, we assume that V̂ (st+L) = 0, always.
+A complex return is a weighted average of the 1, . . . , L step returns:
+R†st =
+L∑
+n=1
+w†(n,L)R
+(n)
+st , (1)
+where w†(n,L) are weights and † ∈ {λ, γ,Ω} will be used to specify the weighting schemes of
+different approaches. The question that this paper proposes an answer to is: what weighting scheme
+will produce the best estimates of the true expected return?
+The λ-return, Rλst , is the weighting scheme that is used by the entire family of TD(λ) algorithms
+[5]. It uses a parameter λ ∈ [0, 1] that determines how the weight given to a return decreases as the
+length of the return increases:
+wλ(n,L) =
+{
+(1− λ)λn−1 if n < L
+1−
+∑n−1
+i=1 wλ(i) if n = L.
+When λ = 0, Rλst = R
+TD
+st , which has low variance but high bias. When λ = 1, R
+λ
+st = R
+MC
+st , which
+has high variance but is unbiased. Intermediate values of λ blend the high-bias but low-variance
+estimates from short returns with the low-bias but high-variance estimates from the longer returns.
+The success of the λ-return is largely due to its simplicity—TD(λ) using linear function approxi-
+mation has per-time-step time complexity linear in the number of features. However, this efficiency
+comes at a cost: the λ-return is not founded on a principled statistical derivation.1 Konidaris et al. [4]
+remedied this recently by showing that the λ-return is the maximum likelihood estimator of V (st)
+given three assumptions. Specifically, Rλst ∈ arg maxx∈R Pr(R
+(1)
+st , R
+(2)
+st , . . . , R
+(L)
+st |V (st) = x) if
+Assumption 1 (Independence). R(1)st , . . . , R
+(L)
+st are independent random variables,
+Assumption 2 (Unbiased Normal Estimators). R(n)st is normally distributed with mean E[R
+(n)
+st ] =
+V (st) for all n.
+Assumption 3 (Geometric Variance). Var(R(n)st ) ∝ 1/λn.
+Although this result provides a theoretical foundation for the λ-return, it is based on three typically
+false assumptions: the returns are highly correlated, only the Monte Carlo return is unbiased, and the
+variance of the n-step returns from each state do not usually increase geometrically. This suggests
+three areas where the λ-return might be improved—it could be modified to better account for the
+correlation of returns, the bias of the different returns, and the true form of Var(R(n)st ).
+The γ-return uses an approximate formula for the variance of an n-step return in place of Assumption
+3. This allows the γ-return to better account for how the variance of returns increases with their
+1To be clear: there is a wealth of theoretical and empirical analyses of algorithms that use the λ-return.
+Until recently there was not a derivation of the λ-return as the estimator of V (st) that optimizes some objective
+(e.g., maximizes log likelihood or minimizes expected squared error).
+2
+length, while simultaneously removing the need for the λ parameter. The γ-return is given by the
+weighting scheme:
+wγ(n,L) =
+(
+∑n
+i=1 γ
+2(i−1))−1∑L
+n̂=1(
+∑n̂
+i=1 γ
+2(i−1))−1
+.
+3 The Ω-Return
+We propose a new complex return, the Ω-return, that improves upon the λ and γ returns by account-
+ing for the correlations of the returns. To emphasize this problem, notice that R(20)st and R
+(21)
+st will
+be almost identical (perfectly correlated) for many MDPs (particularly when γ is small). This means
+that Assumption 1 is particularly egregious, and suggests that a new complex return might improve
+upon the λ and γ-returns by properly accounting for the correlation of returns.
+We formulate the problem of how best to combine different length returns to estimate the true ex-
+pected return as a linear regression problem. This reformulation allows us to leverage the well-
+understood properties of linear regression algorithms. Consider a regression problem with L points,
+{(xi, yi)}Li=1, where the value of yi depends on the value of xi. The goal is to predict yi given
+xi. We set xi = 1 and yi = R
+(i)
+st . We can then construct the design matrix (a vector in this case),
+x = 1 = [1, . . . , 1]ᵀ ∈ RL and the response vector, y = [R(1)st , R
+(2)
+st , . . . , R
+(L)
+st ]
+ᵀ. We seek a re-
+gression coefficient, β̂ ∈ R, such that y ≈ xβ̂. This β̂ will be our estimate of the true expected
+return.
+Generalized least squares (GLS) is a method for selecting β̂ when the yi are not necessarily in-
+dependent and may have different variances. Specifically, if we use a linear model with (possibly
+correlated) mean-zero noise to model the data, i.e., y = xβ + , where β ∈ R is unknown,  is a
+random vector, E[] = 0, and Var(|x) = Ω, then the GLS estimator
+β̂ = (xᵀΩ−1x)−1xᵀΩ−1y, (2)
+is the best linear unbiased estimator (BLUE) for β [6]—the linear unbiased estimator with the
+lowest possible variance.
+In our setting the assumptions about the true model that produced the data become that
+[R
+(1)
+st , R
+(2)
+st , . . . , R
+(L)
+st ]
+ᵀ = [V (st), V (st), . . . , V (st)]
+ᵀ + , where E[] = 0 (i.e., the returns are
+all unbiased estimates of the true expected return) and Var(|x) = Ω. Since x = 1 in our case,
+Var(|x)(i, j) = Cov(R(i)st − V (st), R
+(j)
+st − V (st)) = Cov(R
+(i)
+st , R
+(j)
+st ), where Var(|x)(i, j) de-
+notes the element of Var(|x) in the ith row and jth column.
+So, using only Assumption 2, GLS ((2), solved for β̂) gives us the complex return:
+β̂ =
+[ 1 1 . . . 1 ] Ω−1
+
+1
+1
+...
+1
+
+
+−1
+︸ ︷︷ ︸
+= 1∑L
+n,m=1 Ω
+−1(n,m)
+[ 1 1 . . . 1 ] Ω−1
+
+R
+(1)
+st
+R
+(2)
+st
+...
+R
+(L)
+st
+
+︸ ︷︷ ︸
+=
+∑L
+n,m=1 Ω
+−1(n,m)R
+(n)
+st
+,
+which can be written in the form of (1) with weights:
+wΩ(n,L) =
+∑L
+m=1 Ω
+−1(n,m)∑L
+n̂,m=1 Ω
+−1(n̂,m)
+, (3)
+where Ω is an L× L matrix with Ω(i, j) = Cov(R(i)st , R
+(j)
+st ).
+Notice that the Ω-return is a generalization of the λ and γ returns. The λ-return can be obtained
+by reintroducing the false assumption that the returns are independent and that their variance grows
+geometrically, i.e., by making Ω a diagonal matrix with Ωn,n = λ−n. Similarly, the γ-return can be
+obtained by making Ω a diagonal matrix with Ωn,n =
+∑n
+i=1 γ
+2(i−1).
+3
+Notice that RΩst is a BLUE of V (st) if Assumption 2 holds. Since Assumption 2 does not hold, the
+Ω-return is not an unbiased estimator of V (s). Still, we expect it to outperform the λ and γ-returns
+because it accounts for the correlation of n-step returns and they do not. However, in some cases
+it may perform worse because it is still based on the false assumption that all of the returns are
+unbiased estimators of V (st). Furthermore, given Assumption 2, there may be biased estimators of
+V (st) that have lower expected mean squared error than a BLUE (which must be unbiased).
+4 Approximating the Ω-Return
+In practice the covariance matrix, Ω, is unknown and must be approximated from data. This ap-
+proach, known as feasible generalized least squares (FGLS), can perform worse than ordinary least
+squares given insufficient data to accurately estimate Ω. We must therefore accurately approximate
+Ω from small amounts of data.
+To study the accuracy of covariance matrix estimates, we estimated Ω using a large number of
+trajectories for four different domains: a 5 × 5 gridworld, a variant of the canonical mountain car
+domain, a real-world digital marketing problem, and a continuous control problem (DAS1), all of
+which are described in more detail in subsequent experiments. The covariance matrix estimates are
+depicted in Figures 1(a), 2(a), 3(a), and 4(a). We do not specify rows and columns in the figures
+because all covariance matrices and estimates thereof are symmetric. Because they were computed
+from a very large number of trajectories, we will treat them as ground truth.
+We must estimate the Ω-return when only a few trajectories are available. Figures 1(b), 2(b), 3(b),
+and 4(b) show direct empirical estimates of the covariance matrices using only a few trajectories.
+These empirical approximations are poor due to the very limited amount of data, except for the
+digital marketing domain, where a “few” trajectories means 10,000. The solid black entries in
+Figures 1(f), 2(f), 3(f), and 4(f) show the weights, wΩ(n,L), on different length returns when using
+different estimates of Ω. The noise in the direct empirical estimate of the covariance matrix using
+only a few trajectories leads to poor estimates of the return weights.
+When approximating Ω from a small number of trajectories, we must be careful to avoid this over-
+fitting of the available data. One way to do this is to assume a compact parametric model for Ω.
+Below we describe a parametric model of Ω that has only four parameters, regardless of L (which
+determines the size of Ω). We use this parametric model in our experiments as a proof of concept—
+we show that the Ω-return using even this simple estimate of Ω can produce improved results over
+the other existing complex returns. We do not claim that this scheme for estimating Ω is particularly
+principled or noteworthy.
+4.1 Estimating Off-Diagonal Entries of Ω
+Notice in Figures 1(a), 2(a), 3(a), and 4(a) that for j > i, Cov(Rist , R
+j
+st) ≈ Cov(R
+i
+st , R
+i
+st) =
+Var(Rist). This structure would mean that we can fill in Ω given its diagonal values, leaving only L
+parameters. We now explain why this relationship is reasonable in general, and not just an artifact
+of our domains. We can write each entry in Ω as a recurrence relation:
+Cov[R(i)st , R
+(j)
+st ] =Cov[R
+(i)
+st , R
+(j−1)
+st + γ
+j−1(rt+j + γV̂ (st+j)− V̂ (st+j−1)]
+=Cov[R(i)st , R
+(j−1)
+st ] + γ
+j−1Cov[R(i)st , rt+j + γV̂ (st+j)− V̂ (st+j−1)],
+when i < j. The term rt+j + γV̂ (st+j) − V̂ (st+j−1) is the temporal difference error j steps
+in the future. The proposed assumption that Cov(Rist , R
+j
+st) = Var(R
+i
+st) is equivalent to as-
+suming that the covariance of this temporal difference error and the i-step return is negligible:
+γj−1Cov[R(i)st , rt+j + γV̂ (st+j) − V̂ (st+j−1)] ≈ 0. The approximate independence of these two
+terms is reasonable in general due to the Markov property, which ensures that at least the conditional
+covariance, Cov[R(i)st , rt+j + γV̂ (st+j)− V̂ (st+j−1)|st], is zero.
+Because this relationship is not exact, the off-diagonal entries tend to grow as they get farther from
+the diagonal. However, especially when some trajectories are padded with absorbing states, this
+relationship is quite accurate when j = L, since the temporal difference errors at the absorbing state
+are all zero, and Cov[R(i)st , 0] = 0. This results in a significant difference between Cov[R
+(i)
+st , R
+(L−1)
+st ]
+4
+5
+10
+15
+20
+0
+5
+10
+15
+20
+25
+0
+5
+10
+15
+20
+25
+(a) Empirical Ω from 1
+million trajectories.
+5
+10
+15
+20
+0
+5
+10
+15
+20
+25
+−10
+0
+10
+20
+30
+(b) Empirical Ω from 5
+trajectories.
+5
+10
+15
+20
+0
+5
+10
+15
+20
+25
+0
+5
+10
+15
+20
+25
+(c) Approximate Ω from
+1 million trajectories.
+5
+10
+15
+20
+0
+5
+10
+15
+20
+25
+0
+10
+20
+30
+(d) Approximate Ω from
+5 trajectories.
+0
+15
+30
+0 20
+Va
+ria
+nc
+e
+Return Length
+Empirical 1M Approx 1M
+Empirical 5 Approx 5
+(e) Approximate and empiri-
+cal diagonals of Ω.
+-0.2
+1
+1 20
+W
+ei
+gh
+t, 
+w
+(n
+, 2
+0)
+Return Length, n
+Empirical 1M Approx 1M Empirical 5 Approx 5
+(f) Approximate and empirical weights
+for each return.
+λ=0.8, 
+3.19055
+App Ω, 
+1.95394
+1
+10
+100
+1,000
+M
+ea
+n 
+Sq
+ua
+re
+d 
+Er
+ro
+r
+Return Type
+(g) Mean squared error from five trajec-
+tories.
+Figure 1: Gridworld Results.
+5
+10
+15
+20
+25
+30
+0
+10
+20
+30
+40
+−20
+0
+20
+40
+60
+80
+(a) Empirical Ω from 1
+million trajectories.
+5
+10
+15
+20
+25
+30
+0
+10
+20
+30
+40
+−100
+0
+100
+200
+(b) Empirical Ω from 2
+trajectories.
+5
+10
+15
+20
+25
+30
+0
+10
+20
+30
+40
+0
+20
+40
+60
+80
+(c) Approximate Ω from
+1 million trajectories.
+5
+10
+15
+20
+25
+30
+0
+10
+20
+30
+40
+0
+50
+100
+150
+(d) Approximate Ω from
+2 trajectories.
+0
+80
+160
+0 30
+Va
+ria
+nc
+e
+Return Length
+Empirical 1M Approx 1M
+Empirical 2 Approx 2
+(e) Approximate and empiri-
+cal diagonals of Ω.
+-0.2
+1
+1 30
+W
+ei
+gh
+t, 
+w
+(n
+, 1
+1)
+Return Length, n
+Empirical 1M Approx 1M Empirical 2 Approx 2
+(f) Approximate and empirical weights
+for each return.
+WIS, 144.48 App Ω, 76.39
+10
+100
+1,000
+10,000
+IS
+W
+IS λ=
+0
+λ=
+0.
+1
+λ=
+0.
+2
+λ=
+0.
+3
+λ=
+0.
+4
+λ=
+0.
+5
+λ=
+0.
+6
+λ=
+0.
+7
+λ=
+0.
+8
+λ=
+0.
+9
+λ=
+1 γ
+Em
+p 
+Ω
+A
+pp
+ Ω
+M
+ea
+n 
+Sq
+ua
+re
+d 
+Er
+ro
+r
+Return Type
+(g) Mean squared error from two trajec-
+tories.
+Figure 2: Mountain Car Results.
+5
+1 2
+3
+4
+5
+6
+7
+8
+9 10
+1 2
+3 4
+5 6
+7 8
+910
+0
+0.05
+0.1
+0.15
+0.2
+(a) Empirical Ω from 1
+million trajectories.
+1 2
+3
+4
+5
+6
+7
+8
+9 10
+1 2
+3 4
+5 6
+7 8
+910
+0
+0.05
+0.1
+0.15
+0.2
+(b) Empirical Ω from
+10000 trajectories.
+1 2
+3
+4
+5
+6
+7
+8
+9 10
+1 2
+3 4
+5 6
+7 8
+910
+0
+0.05
+0.1
+0.15
+0.2
+(c) Approximate Ω from
+1 million trajectories.
+1 2
+3
+4
+5
+6
+7
+8
+9 10
+1 2
+3 4
+5 6
+7 8
+910
+0
+0.05
+0.1
+0.15
+0.2
+(d) Approximate Ω from
+10000 trajectories.
+0
+0.08
+0.16
+0 10
+Va
+ria
+nc
+e
+Return Length
+Empirical 1M Approx 1M
+Empirical 10k Approx 10k
+(e) Approximate and empiri-
+cal diagonals of Ω.
+-0.5
+1
+1 10W
+ei
+gh
+t, 
+w
+(n
+, 1
+0)
+Return Length, n
+Empirical 1M Approx 1M Empirical 10k Approx 10k
+(f) Approximate and empirical weights
+for each return.
+λ=0, 0.0011
+Emp Ω, 
+0.0007
+App Ω, 
+0.0011
+0
+0.002
+0.004
+IS
+W
+IS λ=
+0
+λ=
+0.
+1
+λ=
+0.
+2
+λ=
+0.
+3
+λ=
+0.
+4
+λ=
+0.
+5
+λ=
+0.
+6
+λ=
+0.
+7
+λ=
+0.
+8
+λ=
+0.
+9
+λ=
+1 γ
+Em
+p 
+Ω
+A
+pp
+ Ω
+M
+ea
+n 
+Sq
+ua
+re
+d 
+Er
+ro
+r
+Return Type
+(g) Mean squared error from 10000 tra-
+jectories.
+Figure 3: Digital Marketing Results.
+5
+10
+15
+20
+0
+5
+10
+15
+20
+25
+0
+10
+20
+30
+40
+(a) Empirical Ω from
+10000 trajectories.
+5
+10
+15
+20
+0
+5
+10
+15
+20
+25
+−10
+0
+10
+20
+30
+(b) Empirical Ω from 10
+trajectories.
+5
+10
+15
+20
+0
+5
+10
+15
+20
+25
+0
+10
+20
+30
+40
+(c) Approximate Ω from
+10000 trajectories.
+5
+10
+15
+20
+0
+5
+10
+15
+20
+25
+0
+5
+10
+15
+20
+25
+(d) Approximate Ω from
+10 trajectories.
+0
+20
+40
+0 10 20
+Va
+ria
+nc
+e
+Return Length
+Empirical 10K Approx 10K
+Empirical 10 Approx 10
+(e) Approximate and empiri-
+cal diagonals of Ω.
+-0.5
+1
+1 20W
+ei
+gh
+t, 
+w
+(n
+, 1
+0)
+Return Length, n
+Empirical 10K Approx 10K Empirical 10 Approx 10
+(f) Approximate and empirical weights
+for each return.
+λ=0, 3.2102
+λ=1, 3.47436 App Ω, 
+3.10701
+10
+100
+IS
+W
+IS λ=
+0
+λ=
+0.
+1
+λ=
+0.
+2
+λ=
+0.
+3
+λ=
+0.
+4
+λ=
+0.
+5
+λ=
+0.
+6
+λ=
+0.
+7
+λ=
+0.
+8
+λ=
+0.
+9
+λ=
+1 γ
+Em
+p 
+Ω
+A
+pp
+ Ω
+M
+ea
+n 
+Sq
+ua
+re
+d 
+Er
+ro
+r
+Return Type
+(g) Mean squared error from 10 trajec-
+tories.
+Figure 4: Functional Electrical Stimulation Results.
+6
+and Cov[R(i)st , R
+(L)
+st ]. Rather than try to model this drop, which can influence the weights signifi-
+cantly, we reintroduce the assumption that the Monte Carlo return is independent of the other returns,
+making the off-diagonal elements of the last row and column zero.
+4.2 Estimating Diagonal Entries of Ω
+The remaining question is how best to approximate the diagonal of Ω from a very small number
+of trajectories. Consider the solid and dotted black curves in Figures 1(e), 2(e), 3(e), and 4(e),
+which depict the diagonals of Ω when estimated from either a large number or small number of
+trajectories. When using only a few trajectories, the diagonal includes fluctuations that can have
+significant impacts on the resulting weights. However, when using many trajectories (which we
+treat as giving ground truth), the diagonal tends to be relatively smooth and monotonically increasing
+until it plateaus (ignoring the final entry).
+This suggests using a smooth parametric form to approximate the diagonal, which we do as follows.
+Let vi denote the sample variance of R
+(i)
+st for i = 1 . . . L. Let v+ be the largest sample variance:
+v+ = maxi∈{1,...,L} vi. We parameterize the diagonal using four parameters, k1, k2, v+, and vL:
+Ω̂k1,k2,v+,vL(i, i) =
+
+k1 if i = 1
+vL if i = L
+min{v+, k1k(1−t)2 } otherwise.
+Ω(1, 1) = k1 sets the initial variance, and vL is the variance of the Monte Carlo return. The pa-
+rameter v+ enforces a ceiling on the variance of the i-step return, and k2 captures the growth rate of
+the variance, much like λ. We select the k1 and k2 that minimize the mean squared error between
+Ω̂(i, i) and vi, and set v+ and vL directly from the data.2
+This reduces the problem of estimating Ω, an L×L matrix, to estimating four numbers from return
+data. Consider Figures 1(c), 2(c), 3(c), and 4(c), which depict Ω̂ as computed from many trajectories.
+The differences between these estimates and the ground truth show that this parameterization is not
+perfect, as we cannot represent the true Ω exactly. However, the estimate is reasonable and the
+resulting weights (solid red) are visually similar to the ground truth weights (solid black) in Figures
+1(f), 2(f), 3(f), and 4(f). We can now get accurate estimates of Ω from very few trajectories. Figures
+1(d), 2(d), 3(d), and 4(d) show Ω̂ when computed from only a few trajectories. Note their similarity
+to Ω̂ when using a large number of trajectories, and that the resulting weights (unfilled red in Figures
+1(f), 2(f), 3(f), and 4(f)) are similar to the those obtained using many more trajectories (the filled red
+bars).
+Pseudocode for approximating the Ω-return is provided in Algorithm 1. Unlike the λ-return, which
+can be computed from a single trajectory, the Ω-return requires a set of trajectories in order to
+estimate Ω. The pseudocode assumes that every trajectory is of length L, which can be achieved by
+padding shorter trajectories with absorbing states.
+2We include the constraints that k2 ∈ [0, 1] and 0 ≤ k1 ≤ v+.
+7
+Algorithm 1: Computing the Ω-return.
+Require: n trajectories beginning at s and of length L.
+1. Compute R(i)s for i = 1, . . . , L and for each trajectory.
+2. Compute the sample variances, vi = Var(R
+(i)
+s ), for i = 1, . . . , L.
+3. Set v+ = maxi∈{1,...,L} vi.
+4. Search for the k1 and k2 that minimize the mean squared error between vi and
+Ω̂k1,k2,v+,vL(i, i) for i = 1, . . . , L.
+5. Fill the diagonal of the L× L matrix, Ω, with Ω(i, i) = Ω̂k1,k2,v+,vL(i, i), using the
+optimized k1 and k2.
+6. Fill all of the other entries with Ω(i, j) = Ω(i, i) where j > i. If (i = L or j = L) and
+i 6= j then set Ω(i, j) = 0 instead.
+7. Compute the weights for the returns according to (3).
+8. Compute the Ω-return for each trajectory according to (1).
+5 Experiments
+Approximations of the Ω-return could, in principle, replace the λ-return in the whole family of
+TD(λ) algorithms. However, using the Ω-return for TD(λ) raises several interesting questions that
+are beyond the scope of this initial work (e.g., is there a linear-time way to estimate the Ω-return?
+Since a different Ω is needed for every state, how can the Ω-return be used with function approxi-
+mation where most states will never be revisited?). We therefore focus on the specific problem of
+off-policy policy evaluation—estimating the performance of a policy using trajectories generated by
+a possibly different policy. This problem is of interest for applications that require the evaluation of
+a proposed policy using historical data.
+Due to space constraints, we relegate the details of our experiments to the appendix in the supple-
+mental documents. However, the results of the experiments are clear—Figures 1(g), 2(g), 3(g), and
+4(g) show the mean squared error (MSE) of value estimates when using various methods.3 Notice
+that, for all domains, using the Ω-return (the EMP Ω and APP Ω labels) results in lower MSE than
+the γ-return and the λ-return with any setting of λ.
+6 Conclusions
+Recent work has begun to explore the statistical basis of complex estimates of return, and how we
+might reformulate them to be more statistically efficient [4]. We have proposed a return estimator
+that improves upon the λ and γ-returns by accounting for the covariance of return estimates. Our
+results show that understanding and exploiting the fact that in control settings—unlike in standard
+supervised learning—observed samples are typically neither independent nor identically distributed,
+can substantially improve data efficiency in an algorithm of significant practical importance.
+Many (largely positive) theoretical properties of the λ-return and TD(λ) have been discovered over
+the past few decades. This line of research into other complex returns is still in its infancy, and
+so there are many open questions. For example, can the Ω-return be improved upon by removing
+Assumption 2 or by keeping Assumption 2 but using a biased estimator (not a BLUE)? Is there
+a method for approximating the Ω-return that allows for value function approximation with the
+same time complexity as TD(λ), or which better leverages our knowledge that the environment is
+Markovian? Would TD(λ) using the Ω-return be convergent in the same settings as TD(λ)? While
+we hope to answer these questions in future work, it is also our hope that this work will inspire other
+researchers to revisit the problem of constructing a statistically principled complex return.
+3To compute the MSE we used a large number of Monte Carlo rollouts to estimate the true value of each
+policy.
+8
+References
+[1] R.S. Sutton. Learning to predict by the methods of temporal differences. Machine Learning, 3(1):9–44,
+1988.
+[2] S.J. Bradtke and A.G. Barto. Linear least-squares algorithms for temporal difference learning. Machine
+Learning, 22(1-3):33–57, March 1996.
+[3] C. Downey and S. Sanner. Temporal difference Bayesian model averaging: A Bayesian perspective on
+adapting lambda. In Proceedings of the 27th International Conference on Machine Learning, pages 311–
+318, 2010.
+[4] G.D. Konidaris, S. Niekum, and P.S. Thomas. TDγ : Re-evaluating complex backups in temporal differ-
+ence learning. In Advances in Neural Information Processing Systems 24, pages 2402–2410, 2011.
+[5] R. S. Sutton and A. G. Barto. Reinforcement Learning: An Introduction. MIT Press, Cambridge, MA,
+1998.
+[6] T. Kariya and H. Kurata. Generalized Least Squares. Wiley, 2004.
+[7] D. Precup, R. S. Sutton, and S. Singh. Eligibility traces for off-policy policy evaluation. In Proceedings
+of the 17th International Conference on Machine Learning, pages 759–766, 2000.
+[8] A. R. Mahmood, H. Hasselt, and R. S. Sutton. Weighted importance sampling for off-policy learning with
+linear function approximation. In Advances in Neural Information Processing Systems 27, 2014.
+[9] J. R. Tetreault and D. J. Litman. Comparing the utility of state features in spoken dialogue using rein-
+forcement learning. In Proceedings of the Human Language Technology/North American Association for
+Computational Linguistics, 2006.
+[10] G. D. Konidaris, S. Osentoski, and P. S. Thomas. Value function approximation in reinforcement learning
+using the Fourier basis. In Proceedings of the Twenty-Fifth Conference on Artificial Intelligence, pages
+380–395, 2011.
+[11] G. Theocharous and A. Hallak. Lifetime value marketing using reinforcement learning. In The 1st
+Multidisciplinary Conference on Reinforcement Learning and Decision Making, 2013.
+[12] P. S. Thomas, G. Theocharous, and M. Ghavamzadeh. High confidence off-policy evaluation. In Pro-
+ceedings of the Twenty-Ninth Conference on Artificial Intelligence, 2015.
+[13] D. Blana, R. F. Kirsch, and E. K. Chadwick. Combined feedforward and feedback control of a redundant,
+nonlinear, dynamic musculoskeletal system. Medical and Biological Engineering and Computing, 47:
+533–542, 2009.
+[14] P. S. Thomas, M. S. Branicky, A. J. van den Bogert, and K. M. Jagodnik. Application of the actor-critic
+architecture to functional electrical stimulation control of a human arm. In Proceedings of the Twenty-
+First Innovative Applications of Artificial Intelligence, pages 165–172, 2009.
+[15] P. M. Pilarski, M. R. Dawson, T. Degris, F. Fahimi, J. P. Carey, and R. S. Sutton. Online human training
+of a myoelectric prosthesis controller via actor-critic reinforcement learning. In Proceedings of the 2011
+IEEE International Conference on Rehabilitation Robotics, pages 134–140, 2011.
+[16] K. Jagodnik and A. van den Bogert. A proportional derivative FES controller for planar arm movement.
+In 12th Annual Conference International FES Society, Philadelphia, PA, 2007.
+[17] N. Hansen and A. Ostermeier. Completely derandomized self-adaptation in evolution strategies. Evolu-
+tionary Computation, 9(2):159–195, 2001.
+9
