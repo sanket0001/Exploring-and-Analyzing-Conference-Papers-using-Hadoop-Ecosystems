@@ -1,0 +1,781 @@
+
+
+
+Paper ID = 6035
+Title = Adaptive Low-Complexity Sequential Inference for
+Dirichlet Process Mixture Models
+Theodoros Tsiligkaridis, Keith W. Forsythe
+Massachusetts Institute of Technology, Lincoln Laboratory
+Lexington, MA 02421 USA
+ttsili@ll.mit.edu, forsythe@ll.mit.edu
+Abstract
+We develop a sequential low-complexity inference procedure for Dirichlet pro-
+cess mixtures of Gaussians for online clustering and parameter estimation when
+the number of clusters are unknown a-priori. We present an easily computable,
+closed form parametric expression for the conditional likelihood, in which hyper-
+parameters are recursively updated as a function of the streaming data assuming
+conjugate priors. Motivated by large-sample asymptotics, we propose a novel
+adaptive low-complexity design for the Dirichlet process concentration parame-
+ter and show that the number of classes grow at most at a logarithmic rate. We
+further prove that in the large-sample limit, the conditional likelihood and data
+predictive distribution become asymptotically Gaussian. We demonstrate through
+experiments on synthetic and real data sets that our approach is superior to other
+online state-of-the-art methods.
+1 Introduction
+Dirichlet process mixture models (DPMM) have been widely used for clustering data Neal (1992);
+Rasmussen (2000). Traditional finite mixture models often suffer from overfitting or underfitting
+of data due to possible mismatch between the model complexity and amount of data. Thus, model
+selection or model averaging is required to find the correct number of clusters or the model with
+the appropriate complexity. This requires significant computation for high-dimensional data sets or
+large samples. Bayesian nonparametric modeling are alternative approaches to parametric modeling,
+an example being DPMM’s which can automatically infer the number of clusters from the data via
+Bayesian inference techniques.
+The use of Markov chain Monte Carlo (MCMC) methods for Dirichlet process mixtures has made
+inference tractable Neal (2000). However, these methods can exhibit slow convergence and their
+convergence can be tough to detect. Alternatives include variational methods Blei & Jordan (2006),
+which are deterministic algorithms that convert inference to optimization. These approaches can
+take a significant computational effort even for moderate sized data sets. For large-scale data sets
+and low-latency applications with streaming data, there is a need for inference algorithms that are
+much faster and do not require multiple passes through the data. In this work, we focus on low-
+complexity algorithms that adapt to each sample as they arrive, making them highly scalable. An
+online algorithm for learning DPMM’s based on a sequential variational approximation (SVA) was
+proposed in Lin (2013), and the authors in Wang & Dunson (2011) recently proposed a sequential
+maximum a-posterior (MAP) estimator for the class labels given streaming data. The algorithm is
+called sequential updating and greedy search (SUGS) and each iteration is composed of a greedy
+selection step and a posterior update step.
+The choice of concentration parameter α is critical for DPMM’s as it controls the number of clus-
+ters Antoniak (1974). While most fast DPMM algorithms use a fixed α Fearnhead (2004); Daume
+1
+(2007); Kurihara et al. (2006), imposing a prior distribution on α and sampling from it provides more
+flexibility, but this approach still heavily relies on experimentation and prior knowledge. Thus, many
+fast inference methods for Dirichlet process mixture models have been proposed that can adapt α
+to the data, including the works Escobar & West (1995) where learning of α is incorporated in the
+Gibbs sampling analysis, Blei & Jordan (2006) where a Gamma prior is used in a conjugate manner
+directly in the variational inference algorithm. Wang & Dunson (2011) also account for model un-
+certainty on the concentration parameter α in a Bayesian manner directly in the sequential inference
+procedure. This approach can be computationally expensive, as discretization of the domain of α is
+needed, and its stability highly depends on the initial distribution on α and on the range of values of
+α. To the best of our knowledge, we are the first to analytically study the evolution and stability of
+the adapted sequence of α’s in the online learning setting.
+In this paper, we propose an adaptive non-Bayesian approach for adapting α motivated by large-
+sample asymptotics, and call the resulting algorithm ASUGS (Adaptive SUGS). While the basic
+idea behind ASUGS is directly related to the greedy approach of SUGS, the main contribution is
+a novel low-complexity stable method for choosing the concentration parameter adaptively as new
+data arrive, which greatly improves the clustering performance. We derive an upper bound on the
+number of classes, logarithmic in the number of samples, and further prove that the sequence of
+concentration parameters that results from this adaptive design is almost bounded. We finally prove,
+that the conditional likelihood, which is the primary tool used for Bayesian-based online clustering,
+is asymptotically Gaussian in the large-sample limit, implying that the clustering part of ASUGS
+asymptotically behaves as a Gaussian classifier. Experiments show that our method outperforms
+other state-of-the-art methods for online learning of DPMM’s.
+The paper is organized as follows. In Section 2, we review the sequential inference framework for
+DPMM’s that we will build upon, introduce notation and propose our adaptive modification. In
+Section 3, the probabilistic data model is given and sequential inference steps are shown. Section
+4 contains the growth rate analysis of the number of classes and the adaptively-designed concentra-
+tion parameters, and Section 5 contains the Gaussian large-sample approximation to the conditional
+likelihood. Experimental results are shown in Section 6 and we conclude in Section 7.
+2 Sequential Inference Framework for DPMM
+Here, we review the SUGS framework of Wang & Dunson (2011) for online clustering. Here, the
+nonparametric nature of the Dirichlet process manifests itself as modeling mixture models with
+countably infinite components. Let the observations be given by yi ∈ Rd, and γi to denote
+the class label of the ith observation (a latent variable). We define the available information at
+time i as y(i) = {y1, . . . ,yi} and γ(i−1) = {γ1, . . . , γi−1}. The online sequential updating and
+greedy search (SUGS) algorithm is summarized next for completeness. Set γ1 = 1 and calculate
+π(θ1|y1, γ1). For i ≥ 2,
+1. Choose best class label for yi: γi ∈ arg max1≤h≤ki−1+1 P (γi = h|y(i), γ(i−1)).
+2. Update the posterior distribution using yi, γi: π(θγi |y(i), γ(i)) ∝
+f(yi|θγi)π(θγi |y(i−1), γ(i−1)).
+where θh are the parameters of class h, f(yi|θh) is the observation density conditioned on class
+h and ki−1 is the number of classes created at time i − 1. The algorithm sequentially allocates
+observations yi to classes based on maximizing the conditional posterior probability.
+To calculate the posterior probability P (γi = h|y(i), γ(i−1)), define the variables:
+Li,h(yi)
+def
+= P (yi|γi = h,y(i−1), γ(i−1)), πi,h(α)
+def
+= P (γi = h|α,y(i−1), γ(i−1))
+From Bayes’ rule, P (γi = h|y(i), γ(i−1)) ∝ Li,h(yi)πi,h(α) for h = 1, . . . , ki−1 + 1. Here, α is
+considered fixed at this iteration, and is not updated in a fully Bayesian manner.
+According to the Dirichlet process prediction, the predictive probability of assigning observation yi
+to a class h is:
+πi,h(α) =
+{
+mi−1(h)
+i−1+α , h = 1, . . . , ki−1
+α
+i−1+α , h = ki−1 + 1
+(1)
+2
+Algorithm 1 Adaptive Sequential Updating and Greedy Search (ASUGS)
+Input: streaming data {yi}∞i=1, rate parameter λ > 0.
+Set γ1 = 1 and k1 = 1. Calculate π(θ1|y1, γ1).
+for i ≥ 2: do
+(a) Update concentration parameter: αi−1 =
+ki−1
+λ+log(i−1) .
+(b) Choose best label for yi: γi ∼ {q(i)h } =
+{
+Li,h(yi)πi,h(αi−1)∑
+h′ Li,h′ (yi)πi,h′ (αi−1)
+}
+.
+(c) Update posterior distribution: π(θγi |y(i), γ(i)) ∝ f(yi|θγi)π(θγi |y(i−1), γ(i−1)).
+end for
+where mi−1(h) =
+∑i−1
+l=1 I(γl = h) counts the number of observations labeled as class h at time
+i− 1, and α > 0 is the concentration parameter.
+2.1 Adaptation of Concentration Parameter α
+It is well known that the concentration parameter α has a strong influence on the growth of the num-
+ber of classes Antoniak (1974). Our experiments show that in this sequential framework, the choice
+of α is even more critical. Choosing a fixed α as in the online SVA algorithm of Lin (2013) requires
+cross-validation, which is computationally prohibitive for large-scale data sets. Furthermore, in the
+streaming data setting where no estimate on the data complexity exists, it is impractical to perform
+cross-validation. Although the parameter α is handled from a fully Bayesian treatment in Wang &
+Dunson (2011), a pre-specified grid of possible values α can take, say {αl}Ll=1, along with the prior
+distribution over them, needs to be chosen in advance. Storage and updating of a matrix of size
+(ki−1 + 1) × L and further marginalization is needed to compute P (γi = h|y(i), γ(i−1)) at each
+iteration i. Thus, we propose an alternative data-driven method for choosing α that works well in
+practice, is simple to compute and has theoretical guarantees.
+The idea is to start with a prior distribution on α that favors small α and shape it into a posterior
+distribution using the data. Define pi(α) = p(α|y(i), γ(i)) as the posterior distribution formed at
+time i, which will be used in ASUGS at time i + 1. Let p1(α) ≡ p1(α|y(1), γ(1)) denote the prior
+for α, e.g., an exponential distribution p1(α) = λe−λα. The dependence on y(i) and γ(i) is trivial
+only at this first step. Then, by Bayes rule, pi(α) ∝ p(yi, γi|y(i−1), γ(i−1), α)p(α|y(i−1), γ(i−1)) ∝
+pi−1(α)πi,γi(α) where πi,γi(α) is given in (1). Once this update is made after the selection of γi, the
+α to be used in the next selection step is the mean of the distribution pi(α), i.e., αi = E[α|y(i), γ(i)].
+As will be shown in Section 5, the distribution pi(α) can be approximated by a Gamma distribution
+with shape parameter ki and rate parameter λ + log i. Under this approximation, we have αi =
+ki
+λ+log i , only requiring storage and update of one scalar parameter ki at each iteration i.
+The ASUGS algorithm is summarized in Algorithm 1. The selection step may be implemented
+by sampling the probability mass function {q(i)h }. The posterior update step can be efficiently per-
+formed by updating the hyperparameters as a function of the streaming data for the case of conjugate
+distributions. Section 3 derives these updates for the case of multivariate Gaussian observations and
+conjugate priors for the parameters.
+3 Sequential Inference under Unknown Mean & Unknown Covariance
+We consider the general case of an unknown mean and covariance for each class. The probabilistic
+model for the parameters of each class is given as:
+yi|µ,T ∼ N (·|µ,T), µ|T ∼ N (·|µ0, coT), T ∼ W(·|δ0,V0) (2)
+where N (·|µ,T) denotes the multivariate normal distribution with mean µ and precision matrix
+T, andW(·|δ,V) is the Wishart distribution with 2δ degrees of freedom and scale matrix V. The
+parameters θ = (µ,T) ∈ Rd×Sd++ follow a normal-Wishart joint distribution. The model (2) leads
+to closed-form expressions for Li,h(yi)’s due to conjugacy Tzikas et al. (2008).
+To calculate the class posteriors, the conditional likelihoods of yi given assignment to class h and
+the previous class assignments need to be calculated first. The conditional likelihood of yi given
+3
+assignment to class h and the history (y(i−1), γ(i−1)) is given by:
+Li,h(yi) =
+∫
+f(yi|θh)π(θh|y(i−1), γ(i−1))dθh (3)
+Due to the conjugacy of the distributions, the posterior π(θh|y(i−1), γ(i−1)) always has the form:
+π(θh|y(i−1), γ(i−1)) = N (µh|µ(i−1)h , c
+(i−1)
+h Th)W(Th|δ
+(i−1)
+h ,V
+(i−1)
+h )
+where µ(i−1)h , c
+(i−1)
+h , δ
+(i−1)
+h ,V
+(i−1)
+h are hyperparameters that can be recursively computed as new
+samples come in. The form of this recursive computation of the hyperparameters is derived in
+Appendix A. For ease of interpretation and numerical stability, we define Σ(i)h :=
+(V
+(i)
+h )
+−1
+2δ
+(i)
+h
+as the
+inverse of the mean of the Wishart distribution W(·|δ(i)h ,V
+(i)
+h ). The matrix Σ
+(i)
+h has the natural
+interpretation as the covariance matrix of class h at iteration i. Once the γith component is chosen,
+the parameter updates for the γith class become:
+µ(i)γi =
+1
+1 + c
+(i−1)
+γi
+yi +
+c
+(i−1)
+γi
+1 + c
+(i−1)
+γi
+µ(i−1)γi (4)
+c(i)γi = c
+(i−1)
+γi + 1 (5)
+Σ(i)γi =
+2δ
+(i−1)
+γi
+1 + 2δ
+(i−1)
+γi
+Σ(i−1)γi +
+1
+1 + 2δ
+(i−1)
+γi
+c
+(i−1)
+γi
+1 + c
+(i−1)
+γi
+(yi − µ(i−1)γi )(yi − µ
+(i−1)
+γi )
+T (6)
+δ(i)γi = δ
+(i−1)
+γi +
+1
+2
+(7)
+If the starting matrix Σ(0)h is positive definite, then all the matrices {Σ
+(i)
+h } will remain positive
+definite. Let us return to the calculation of the conditional likelihood (3). By iterated integration, it
+follows that:
+Li,h(yi) ∝
+(
+r
+(i−1)
+h
+2δ
+(i−1)
+h
+)d/2
+ρd(δ
+(i−1)
+h ) det(Σ
+(i−1)
+h )
+−1/2(
+1 +
+r
+(i−1)
+h
+2δ
+(i−1)
+h
+(yi − µ(i−1)h )T (Σ
+(i−1)
+h )
+−1(yi − µ(i−1)h )
+)δ(i−1)h + 12 (8)
+where ρd(a)
+def
+=
+Γ(a+ 12 )
+Γ(a+ 1−d2 )
+and r(i−1)h
+def
+=
+c
+(i−1)
+h
+1+c
+(i−1)
+h
+. A detailed mathematical derivation of this
+conditional likelihood is included in Appendix B. We remark that for the new class h = ki−1 + 1,
+Li,ki−1+1 has the form (8) with the initial choice of hyperparameters r
+(0), δ(0), µ(0),Σ(0).
+4 Growth Rate Analysis of Number of Classes & Stability
+In this section, we derive a model for the posterior distribution pn(α) using large-sample approxi-
+mations, which will allow us to derive growth rates on the number of classes and the sequence of
+concentration parameters, showing that the number of classes grows as E[kn] = O(log1+ n) for 
+arbitarily small under certain mild conditions.
+The probability density of the α parameter is updated at the jth step in the following fashion:
+pj+1(α) ∝ pj(α) ·
+{ α
+j+α innovation class chosen
+1
+j+α otherwise
+,
+where only the α-dependent factors in the update are shown. The α-independent factors are absorbed
+by the normalization to a probability density. Choosing the innovation class pushes mass toward
+infinity while choosing any other class pushes mass toward zero. Thus there is a possibility that
+the innovation probability grows in a undesired manner. We assess the growth of the number of
+innovations rn
+def
+= kn − 1 under simple assumptions on some likelihood functions that appear
+naturally in the ASUGS algorithm.
+Assuming that the initial distribution of α is p1(α) = λe−λα, the distribution used at step n + 1 is
+proportional to αrn
+∏n−1
+j=1 (1 +
+α
+j )
+−1e−λα. We make use of the limiting relation
+4
+Theorem 1. The following asymptotic behavior holds: limn→∞
+log
+∏n−1
+j=1 (1+
+α
+j )
+α logn = 1.
+Proof. See Appendix C.
+Using Theorem 1, a large-sample model for pn(α) is αrne−(λ+logn)α, suitably normalized. Recog-
+nizing this as the Gamma distribution with shape parameter rn + 1 and rate parameter λ+ log n, its
+mean is given by αn = rn+1λ+logn . We use the mean in this form to choose class membership in Alg. 1.
+This asymptotic approximation leads to a very simple scalar update of the concentration parameter;
+there is no need for discretization for tracking the evolution of continuous probability distributions
+on α. In our experiments, this approximation is very accurate.
+Recall that the innovation class is labeled K+ = kn−1 + 1 at the nth step. The modeled updates
+randomly select a previous class or innovation (new class) by sampling from the probability distri-
+bution {q(n)k = P (γn = k|y(n), γ(n−1))}
+K+
+k=1. Note that n − 1 =
+∑
+k 6=K+ mn(k) , where mn(k)
+represents the number of members in class k at time n.
+We assume the data follows the Gaussian mixture distribution:
+pT (y)
+def
+=
+K∑
+h=1
+πhN (y|µh,Σh) (9)
+where πh are the prior probabilities, and µh,Σh are the parameters of the Gaussian clusters.
+Define the mixture-model probability density function, which plays the role of the predictive distri-
+bution:
+L̃n,K+(y)
+def
+=
+∑
+k 6=K+
+mn−1(k)
+n− 1
+Ln,k(y), (10)
+so that the probabilities of choosing a previous class or an innovation (using Equ. (1)) are propor-
+tional to
+∑
+k 6=K+
+mn−1(k)
+n−1+αn−1Ln,k(yn) =
+(n−1)
+n−1+αn−1 L̃n,K+(yn) and
+αn−1
+n−1+αn−1Ln,K+(yn), respec-
+tively. If τn−1 denotes the innovation probability at step n, then we have(
+ρn−1
+αn−1Ln,K+(yn)
+n− 1 + αn−1
+, ρn−1
+(n− 1)L̃n,K+(yn)
+n− 1 + αn−1
+)
+= (τn−1, 1− τn−1) (11)
+for some positive proportionality factor ρn−1.
+Define the likelihood ratio (LR) at the beginning of stage n as 1:
+ln(y)
+def
+=
+Ln,K+(y)
+L̃n,K+(y)
+(12)
+Conceptually, the mixture (10) represents a modeled distribution fitting the currently observed data.
+If all “modes” of the data have been observed, it is reasonable to expect that L̃n,K+ is a good model
+for future observations. The LR ln(yn) is not large when the future observations are well-modeled
+by (10). In fact, we expect L̃n,K+ → pT as n→∞, as discussed in Section 5.
+Lemma 1. The following bound holds: τn−1 = ln(yn)αn−1n−1+ln(yn)αn−1 ≤ min
+(
+ln(yn)αn−1
+n−1 , 1
+)
+.
+Proof. The result follows directly from (11) after a simple calculation.
+The innovation random variable rn is described by the random process associated with the proba-
+bilities of transition
+P (rn+1 = k|rn) =
+{
+τn, k = rn + 1
+1− τn, k = rn . (13)
+1Here, L0(·)
+def
+= Ln,K+(·) is independent of n and only depends on the initial choice of hyperparameters
+as discussed in Sec. 3.
+5
+The expectation of rn is majorized by the expectation of a similar random process, r̄n, based on the
+transition probability σn
+def
+= min( rn+1an , 1) instead of τn as Appendix D shows, where the random
+sequence {an} is given by ln+1(yn+1)−1n(λ+log n). The latter can be described as a modification
+of a Polya urn process with selection probability σn. The asymptotic behavior of rn and related
+variables is described in the following theorem.
+Theorem 2. Let τn be a sequence of real-valued random variables 0 ≤ τn ≤ 1 satisfying τn ≤ rn+1an
+for n ≥ N , where an = ln+1(yn+1)−1n(λ + log n), and where the nonnegative, integer-valued
+random variables rn evolve according to (13). Assume the following for n ≥ N :
+1. ln(yn) ≤ ζ (a.s.)
+2. D(pT ‖ L̃n,K+) ≤ δ (a.s.)
+where D(p ‖ q) is the Kullback-Leibler divergence between distributions p(·) and q(·). Then, as
+n→∞,
+rn = OP (log
+1+ζ
+√
+δ/2 n), αn = OP (log
+ζ
+√
+δ/2 n) (14)
+Proof. See Appendix E.
+Theorem 2 bounds the growth rate of the mean of the number of class innovations and the concen-
+tration parameter αn in terms of the sample size n and parameter ζ. The bounded LR and bounded
+KL divergence conditions of Thm. 2 manifest themselves in the rate exponents of (14). The ex-
+periments section shows that both of the conditions of Thm. 2 hold for all iterations n ≥ N for
+some N ∈ N. In fact, assuming the correct clustering, the mixture distribution L̃n,kn−1+1 converges
+to the true mixture distribution pT , implying that the number of class innovations grows at most
+as O(log1+ n) and the sequence of concentration parameters is O(log n), where  > 0 can be
+arbitrarily small.
+5 Asymptotic Normality of Conditional Likelihood
+In this section, we derive an asymptotic expression for the conditional likelihood (8) in order to gain
+insight into the steady-state of the algorithm.
+We let πh denote the true prior probability of class h. Using the bounds of the Gamma function
+in Theorem 1.6 from Batir (2008), it follows that lima→∞
+ρd(a)
+e−d/2(a−1/2)d/2 = 1. Under normal
+convergence conditions of the algorithm (with the pruning and merging steps included), all classes
+h = 1, . . . ,K will be correctly identified and populated with approximately ni−1(h) ≈ πh(i − 1)
+observations at time i − 1. Thus, the conditional class prior for each class h converges to πh as
+i → ∞, in virtue of (14), πi,h(αi−1) = ni−1(h)i−1+αi−1 =
+πh
+1+
+OP (log
+ζ
+√
+δ/2(i−1))
+i−1
+i→∞−→ πh. According
+to (5), we expect r(i−1)h → 1 as i → ∞ since c
+(i−1)
+h ∼ πh(i − 1). Also, we expect 2δ
+(i−1)
+h ∼
+πh(i − 1) as i → ∞ according to (7). Also, from before, ρd(δ(i−1)h ) ∼ e−d/2(δ
+(i−1)
+h − 1/2)d/2 ∼
+e−d/2(πh
+i−1
+2 −
+1
+2 )
+d/2. The parameter updates (4)-(7) imply µ(i)h → µh and Σ
+(i)
+h → Σh as i→∞.
+This follows from the strong law of large numbers, as the updates are recursive implementations
+of the sample mean and sample covariance matrix. Thus, the large-sample approximation to the
+conditional likelihood becomes:
+Li,h(yi)
+i→∞∝
+limi→∞
+(
+1 +
+π−1h
+i−1 (yi − µ
+(i−1)
+h )
+T (Σ
+(i−1)
+h )
+−1(yi − µ(i−1)h )
+)− i−1
+2π
+−1
+h
+limi→∞ det(Σ
+(i−1)
+h )
+1/2
+i→∞∝ e
+− 12 (yi−µh)
+TΣ−1h (yi−µh)
+√
+det Σh
+(15)
+where we used limu→∞(1+ cu )
+u = ec. The conditional likelihood (15) corresponds to the multivari-
+ate Gaussian distribution with mean µh and covariance matrix Σh. A similar asymptotic normality
+6
+result was recently obtained in Tsiligkaridis & Forsythe (2015) for Gaussian observations with a von
+Mises prior. The asymptotics mn−1(h)n−1 → πh, µ
+(n)
+h → µh,Σ
+(n)
+h → Σh, Ln,h(y) → N (y|µh,Σh)
+as n→∞ imply that the mixture distribution L̃n,K+ in (10) converges to the true Gaussian mixture
+distribution pT of (9). Thus, for any small δ, we expect D(pT ‖ L̃n,K+) ≤ δ for all n ≥ N ,
+validating the assumption of Theorem 2.
+6 Experiments
+We apply the ASUGS learning algorithm to a synthetic 16-class example and to a real data set, to
+verify the stability and accuracy of our method. The experiments show the value of adaptation of
+the Dirichlet concentration parameter for online clustering and parameter estimation.
+Since it is possible that multiple clusters are similar and classes might be created due to outliers, or
+due to the particular ordering of the streaming data sequence, we add the pruning and merging step
+in the ASUGS algorithm as done in Lin (2013). We compare ASUGS and ASUGS-PM with SUGS,
+SUGS-PM, SVA and SVA-PM proposed in Lin (2013), since it was shown in Lin (2013) that SVA
+and SVA-PM outperform the block-based methods that perform iterative updates over the entire data
+set including Collapsed Gibbs Sampling, MCMC with Split-Merge and Truncation-Free Variational
+Inference.
+6.1 Synthetic Data set
+We consider learning the parameters of a 16-class Gaussian mixture each with equal variance of
+σ2 = 0.025. The training set was made up of 500 iid samples, and the test set was made up of
+1000 iid samples. The clustering results are shown in Fig. 1(a), showing that the ASUGS-based ap-
+proaches are more stable than SVA-based algorithms. ASUGS-PM performs best and identifies the
+correct number of clusters, and their parameters. Fig. 1(b) shows the data log-likelihood on the test
+set (averaged over 100 Monte Carlo trials), the mean and variance of the number of classes at each it-
+eration. The ASUGS-based approaches achieve a higher log-likelihood than SVA-based approaches
+asymptotically. Fig. 6.1 provides some numerical verification for the assumptions of Theorem 2.
+As expected, the predictive likelihood L̃i,K+ (10) converges to the true mixture distribution pT (9),
+and the likelihood ratio li(yi) is bounded after enough samples are processed.
+-4 -2 0 2 4
+-4
+-2
+0
+2
+4
+SVA
+-4 -2 0 2 4
+-4
+-2
+0
+2
+4
+SVA-PM
+-4 -2 0 2 4
+-4
+-2
+0
+2
+4
+ASUGS
+-4 -2 0 2 4
+-4
+-2
+0
+2
+4
+ASUGS-PM
+(a)
+Iteration
+0 100 200 300 400 500
+A
+vg
+. J
+oi
+nt
+ L
+og
+-li
+ke
+lih
+oo
+d
+-10
+-8
+-6
+-4
+-2
+Iteration
+0 100 200 300 400 500
+M
+ea
+n 
+N
+um
+be
+r 
+of
+ C
+la
+ss
+es
+0
+5
+10
+15
+20
+25
+ASUGS
+ASUGS-PM
+SUGS
+SUGS-PM
+SVA
+SVA-PM
+Iteration
+0 100 200 300 400 500
+V
+ar
+ia
+nc
+e 
+of
+ N
+um
+be
+r 
+of
+ C
+la
+ss
+es
+0
+1
+2
+3
+4
+5
+(b)
+Figure 1: (a) Clustering performance of SVA, SVA-PM, ASUGS and ASUGS-PM on synthetic data
+set. ASUGS-PM identifies the 16 clusters correctly. (b) Joint log-likelihood on synthetic data, mean
+and variance of number of classes as a function of iteration. The likelihood values were evaluated on
+a held-out set of 1000 samples. ASUGS-PM achieves the highest log-likelihood and has the lowest
+asymptotic variance on the number of classes.
+6.2 Real Data Set
+We applied the online nonparametric Bayesian methods for clustering image data. We used the
+MNIST data set, which consists of 60, 000 training samples, and 10, 000 test samples. Each sample
+7
+Sample i
+100 200 300 400 500
+l i
+(y
+i)
+0
+1000
+2000
+3000
+4000
+5000
+6000
+7000
+8000
+9000
+10000
+Sample i
+0 100 200 300 400 500
+k
+~ L
+i;
+K
++
+!
+p
+T
+k2 2
+0
+0.5
+1
+1.5
+2
+2.5
+3
+Figure 2: Likelihood ratio li(yi) =
+Li,K+(yi)
+L̃i,K+(yi)
+(left) and L2-distance between L̃i,K+(·) and true
+mixture distribution pT (right) for synthetic example (see 1).
+is a 28 × 28 image of a handwritten digit (total of 784 dimensions), and we perform PCA pre-
+processing to reduce dimensionality to d = 50 dimensions as in Kurihara et al. (2006).
+We use only a random 1.667% subset, consisting of 1000 random samples for training. This training
+set contains data from all 10 digits with an approximately uniform proportion. Fig. 3 shows the
+predictive log-likelihood over the test set, and the mean images for clusters obtained using ASUGS-
+PM and SVA-PM, respectively. We note that ASUGS-PM achieves higher log-likelihood values and
+finds all digits correctly using only 23 clusters, while SVA-PM finds some digits using 56 clusters.
+Iteration
+0 100 200 300 400 500 600 700 800 900 1000
+P
+re
+di
+ct
+iv
+e 
+Lo
+g-
+Li
+ke
+lih
+oo
+d
+-5000
+-4500
+-4000
+-3500
+-3000
+-2500
+-2000
+-1500
+-1000
+-500
+0
+ASUGS-PM
+SUGS-PM
+SVA-PM
+(a) (b) (c)
+Figure 3: Predictive log-likelihood (a) on test set, mean images for clusters found using ASUGS-PM
+(b) and SVA-PM (c) on MNIST data set.
+6.3 Discussion
+Although both SVA and ASUGS methods have similar computational complexity and use decisions
+and information obtained from processing previous samples in order to decide on class innova-
+tions, the mechanics of these methods are quite different. ASUGS uses an adaptive α motivated
+by asymptotic theory, while SVA uses a fixed α. Furthermore, SVA updates the parameters of all
+the components at each iteration (in a weighted fashion) while ASUGS only updates the parameters
+of the most-likely cluster, thus minimizing leakage to unrelated components. The λ parameter of
+ASUGS does not affect performance as much as the threshold parameter  of SVA does, which often
+leads to instability requiring lots of pruning and merging steps and increasing latency. This is crit-
+ical for large data sets or streaming applications, because cross-validation would be required to set
+ appropriately. We observe higher log-likelihoods and better numerical stability for ASUGS-based
+methods in comparison to SVA. The mathematical formulation of ASUGS allows for theoretical
+guarantees (Theorem 2), and asymptotically normal predictive distribution.
+7 Conclusion
+We developed a fast online clustering and parameter estimation algorithm for Dirichlet process mix-
+tures of Gaussians, capable of learning in a single data pass. Motivated by large-sample asymptotics,
+we proposed a novel low-complexity data-driven adaptive design for the concentration parameter
+and showed it leads to logarithmic growth rates on the number of classes. Through experiments on
+synthetic and real data sets, we show our method achieves better performance and is as fast as other
+state-of-the-art online learning DPMM methods.
+8
+References
+Antoniak, C. E. Mixtures of Dirichlet Processes with Applications to Bayesian Nonparametric
+Problems. The Annals of Statistics, 2(6):1152–1174, 1974.
+Batir, N. Inequalities for the Gamma Function. Archiv der Mathematik, 91(6):554–563, 2008.
+Blei, D. M. and Jordan, M. I. Variational Inference for Dirichlet Process Mixtures. Bayesian Anal-
+ysis, 1(1):121–144, 2006.
+Daume, H. Fast Search for Dirichlet Process Mixture Models. In Conference on Artificial Intelli-
+gence and Statistics, 2007.
+Escobar, M. D. and West, M. Bayesian Density Estimation and Inference using Mixtures. Journal
+of the American Statistical Association, 90(430):577–588, June 1995.
+Fearnhead, P. Particle Filters for Mixture Models with an Uknown Number of Components. Statis-
+tics and Computing, 14:11–21, 2004.
+Kurihara, K., Welling, M., and Vlassis, N. Accelerated Variational Dirichlet Mixture Models. In
+Advances in Neural Information Processing Systems (NIPS), 2006.
+Lin, Dahua. Online learning of nonparametric mixture models via sequential variational approxi-
+mation. In Burges, C.J.C., Bottou, L., Welling, M., Ghahramani, Z., and Weinberger, K.Q. (eds.),
+Advances in Neural Information Processing Systems 26, pp. 395–403. Curran Associates, Inc.,
+2013.
+Neal, R. M. Bayesian Mixture Modeling. In Proceedings of the Workshop on Maximum Entropy
+and Bayesian Methods of Statistical Analysis, volume 11, pp. 197–211, 1992.
+Neal, R. M. Markov chain sampling methods for Dirichlet process mixture models. Journal of
+Computational and Graphical Statistics, 9(2):249–265, June 2000.
+Rasmussen, C. E. The infinite gaussian mixture model. In Advances in Neural Information Process-
+ing Systems 12, pp. 554–560. MIT Press, 2000.
+Tsiligkaridis, T. and Forsythe, K. W. A Sequential Bayesian Inference Framework for Blind Fre-
+quency Offset Estimation. In Proceedings of IEEE International Workshop on Machine Learning
+for Signal Processing, Boston, MA, September 2015.
+Tzikas, D. G., Likas, A. C., and Galatsanos, N. P. The Variational Approximation for Bayesian
+Inference. IEEE Signal Processing Magazine, pp. 131–146, November 2008.
+Wang, L. and Dunson, D. B. Fast Bayesian Inference in Dirichlet Process Mixture Models. Journal
+of Computational and Graphical Statistics, 20(1):196–216, 2011.
+9
