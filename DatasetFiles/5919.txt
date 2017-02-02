@@ -1,0 +1,782 @@
+
+
+
+Paper ID = 5919
+Title = Variance Reduced Stochastic Gradient Descent
+with Neighbors
+Thomas Hofmann
+Department of Computer Science
+ETH Zurich, Switzerland
+Aurelien Lucchi
+Department of Computer Science
+ETH Zurich, Switzerland
+Simon Lacoste-Julien
+INRIA - Sierra Project-Team
+École Normale Supérieure, Paris, France
+Brian McWilliams
+Department of Computer Science
+ETH Zurich, Switzerland
+Abstract
+Stochastic Gradient Descent (SGD) is a workhorse in machine learning, yet its
+slow convergence can be a computational bottleneck. Variance reduction tech-
+niques such as SAG, SVRG and SAGA have been proposed to overcome this
+weakness, achieving linear convergence. However, these methods are either based
+on computations of full gradients at pivot points, or on keeping per data point cor-
+rections in memory. Therefore speed-ups relative to SGD may need a minimal
+number of epochs in order to materialize. This paper investigates algorithms that
+can exploit neighborhood structure in the training data to share and re-use infor-
+mation about past stochastic gradients across data points, which offers advantages
+in the transient optimization phase. As a side-product we provide a unified con-
+vergence analysis for a family of variance reduction algorithms, which we call
+memorization algorithms. We provide experimental results supporting our theory.
+1 Introduction
+We consider a general problem that is pervasive in machine learning, namely optimization of an em-
+pirical or regularized convex risk function. Given a convex loss l and a µ-strongly convex regularizer
+Ω, one aims at finding a parameter vector w which minimizes the (empirical) expectation:
+w∗ = argmin
+w
+f(w), f(w) =
+1
+n
+n∑
+i=1
+fi(w), fi(w) := l(w, (xi, yi)) + Ω(w) . (1)
+We assume throughout that each fi has L-Lipschitz-continuous gradients. Steepest descent can
+find the minimizer w∗, but requires repeated computations of full gradients f ′(w), which becomes
+prohibitive for massive data sets. Stochastic gradient descent (SGD) is a popular alternative, in
+particular in the context of large-scale learning [2, 10]. SGD updates only involve f ′i(w) for an index
+i chosen uniformly at random, providing an unbiased gradient estimate, since Ef ′i(w) = f
+′(w).
+It is a surprising recent finding [11, 5, 9, 6] that the finite sum structure of f allows for significantly
+faster convergence in expectation. Instead of the standard O(1/t) rate of SGD for strongly-convex
+functions, it is possible to obtain linear convergence with geometric rates. While SGD requires
+asymptotically vanishing learning rates, often chosen to be O(1/t) [7], these more recent methods
+introduce corrections that ensure convergence for constant learning rates.
+Based on the work mentioned above, the contributions of our paper are as follows: First, we de-
+fine a family of variance reducing SGD algorithms, called memorization algorithms, which includes
+SAGA and SVRG as special cases, and develop a unifying analysis technique for it. Second, we
+1
+show geometric rates for all step sizes γ < 14L , including a universal (µ-independent) step size
+choice, providing the first µ-adaptive convergence proof for SVRG. Third, based on the above anal-
+ysis, we present new insights into the trade-offs between freshness and biasedness of the corrections
+computed from previous stochastic gradients. Fourth, we propose a new class of algorithms that
+resolves this trade-off by computing corrections based on stochastic gradients at neighboring points.
+We experimentally show its benefits in the regime of learning with a small number of epochs.
+2 Memorization Algorithms
+2.1 Algorithms
+Variance Reduced SGD Given an optimization problem as in (1), we investigate a class of
+stochastic gradient descent algorithms that generates an iterate sequence wt (t ≥ 0) with updates
+taking the form:
+w+ = w − γgi(w), gi(w) = f ′i(w)− ᾱi with ᾱi := αi − ᾱ, (2)
+where ᾱ := 1n
+∑n
+j=1 αj . Here w is the current and w
++ the new parameter vector, γ is the step size,
+and i is an index selected uniformly at random. ᾱi are variance correction terms such that Eᾱi = 0,
+which guarantees unbiasedness Egi(w) = f ′(w). The aim is to define updates of asymptotically
+vanishing variance, i.e. gi(w) → 0 as w → w∗, which requires ᾱi → f ′i(w∗). This implies that
+corrections need to be designed in a way to exactly cancel out the stochasticity of f ′i(w
+∗) at the
+optimum. How the memory αj is updated distinguishes the different algorithms that we consider.
+SAGA The SAGA algorithm [4] maintains variance corrections αi by memorizing stochastic gra-
+dients. The update rule is α+i = f
+′
+i(w) for the selected i, and α
++
+j = αj , for j 6= i. Note that
+these corrections will be used the next time the same index i gets sampled. Setting ᾱi := αi − ᾱ
+guarantees unbiasedness. Obviously, ᾱ can be updated incrementally. SAGA reuses the stochastic
+gradient f ′i(w) computed at step t to update w as well as ᾱi.
+q-SAGA We also consider q-SAGA, a method that updates q ≥ 1 randomly chosen αj variables
+at each iteration. This is a convenient reference point to investigate the advantages of “fresher”
+corrections. Note that in SAGA the corrections will be on average n iterations “old”. In q-SAGA
+this can be controlled to be n/q at the expense of additional gradient computations.
+SVRG We reformulate a variant of SVRG [5] in our framework using a randomization argument
+similar to (but simpler than) the one suggested in [6]. Fix q > 0 and draw in each iteration r ∼
+Uniform[0; 1). If r < q/n, a complete update, α+j = f
+′
+j(w) (∀j) is performed, otherwise they are
+left unchanged. While q-SAGA updates exactly q variables in each iteration, SVRG occasionally
+updates all α variables by triggering an additional sweep through the data. There is an option to not
+maintain α variables explicitly and to save on space by storing only ᾱ = f ′(w) and w.
+Uniform Memorization Algorithms Motivated by SAGA and SVRG, we define a class of algo-
+rithms, which we call uniform memorization algorithms.
+Definition 1. A uniform q-memorization algorithm evolves iterates w according to Eq. (2) and
+selects in each iteration a random index set J of memory locations to update according to
+α+j :=
+{
+f ′j(w) if j ∈ J
+αj otherwise,
+(3)
+such that any j has the same probability of q/n of being updated, i.e. ∀j,
+∑
+J3j P{J} =
+q
+n .
+Note that q-SAGA and the above SVRG are special cases. For q-SAGA: P{J} = 1/
+(
+n
+q
+)
+if |J | = q
+P{J} = 0 otherwise. For SVRG: P{∅} = 1− q/n, P{[1 : n]} = q/n, P{J} = 0, otherwise.
+N -SAGA Because we need it in Section 3, we will also define an algorithm, which we call N -
+SAGA, which makes use of a neighborhood system Ni ⊆ {1, . . . , n} and which selects neighbor-
+hoods uniformly, i.e. P{Ni} = 1n . Note that Definition 1 requires |{i : j ∈ Ni}| = q (∀j).
+2
+Finally, note that for generalized linear models where fi depends on xi only through 〈w, xi〉, we
+get f ′i(w) = ξ
+′
+i(w)xi, i.e. the update direction is determined by xi, whereas the effective step length
+depends on the derivative of a scalar function ξi(w). As used in [9], this leads to significant memory
+savings as one only needs to store the scalars ξ′i(w) as xi is always given when performing an update.
+2.2 Analysis
+Recurrence of Iterates The evolution equation (2) in expectation implies the recurrence (by cru-
+cially using the unbiasedness condition Egi(w) = f ′(w)):
+E‖w+−w∗‖2 = ‖w − w∗‖2 − 2γ〈f ′(w), w − w∗〉+ γ2E‖gi(w)‖2 . (4)
+Here and in the rest of this paper, expectations are always taken only with respect to i (conditioned
+on the past). We utilize a number of bounds (see [4]), which exploit strong convexity of f (wherever
+µ appears) as well as Lipschitz continuity of the fi-gradients (wherever L appears):
+〈f ′(w), w − w∗〉 ≥ f(w)− f(w∗) + µ2 ‖w − w
+∗‖2 , (5)
+E‖gi(w)‖2 ≤ 2E‖f ′i(w)− f ′i(w∗)‖2 + 2E‖ᾱi − f ′i(w∗)‖2 , (6)
+‖f ′i(w)− f ′i(w∗)‖2 ≤ 2Lhi(w), hi(w) := fi(w)− fi(w∗)− 〈w − w∗, f ′i(w∗)〉 , (7)
+E‖f ′i(w)−f ′i(w∗)‖2 ≤ 2Lfδ(w), fδ(w) := f(w)− f(w∗) , (8)
+E‖ᾱi − f ′i(w∗)‖2 = E‖αi − f ′i(w∗)‖2 − ‖ᾱ‖2 ≤ E‖αi − f ′i(w∗)‖2. (9)
+Eq. (6) can be generalized [4] using ‖x±y‖2 ≤ (1+β)‖x‖2+(1+β−1)‖y‖2 with β > 0. However
+for the sake of simplicity, we sacrifice tightness and choose β = 1. Applying all of the above yields:
+Lemma 1. For the iterate sequence of any algorithm that evolves solutions according to Eq. (2), the
+following holds for a single update step, in expectation over the choice of i:
+‖w − w∗‖2 −E‖w+ − w∗‖2 ≥ γµ‖w − w∗‖2 − 2γ2E‖αi − f ′i(w∗)‖2 +
+(
+2γ − 4γ2L
+)
+fδ(w) .
+All proofs are deferred to the Appendix.
+Ideal and Approximate Variance Correction Note that in the ideal case of αi = f ′i(w∗), we
+would immediately get a condition for a contraction by choosing γ = 12L , yielding a rate of 1 − ρ
+with ρ = γµ = µ2L , which is half the inverse of the condition number κ := L/µ.
+How can we further bound E‖αi − f ′i(w∗)‖2 in the case of “non-ideal” variance-reducing SGD? A
+key insight is that for memorization algorithms, we can apply the smoothness bound in Eq. (7)
+‖αi − f ′i(w∗)‖2 = ‖f ′i(wτi)− f ′i(w∗)‖2 ≤ 2Lhi(wτi), (where wτi is old w) . (10)
+Note that if we only had approximations βi in the sense that ‖βi − αi‖2 ≤ i (see Section 3), then
+we can use ‖x− y‖ ≤ 2‖x‖+ 2‖y‖ to get the somewhat worse bound:
+‖βi − f ′i(w∗)‖2 ≤ 2‖αi − f ′i(w∗)‖2 + 2‖βi − αi‖2 ≤ 4Lhi(wτi) + 2i. (11)
+Lyapunov Function Ideally, we would like to show that for a suitable choice of γ, each iteration
+results in a contraction E‖w+ − w∗‖2 ≤ (1− ρ)‖w − w∗‖2, where 0 < ρ ≤ 1. However, the main
+challenge arises from the fact that the quantities αi represent stochastic gradients from previous iter-
+ations. This requires a somewhat more complex proof technique. Adapting the Lyapunov function
+method from [4], we define upper bounds Hi ≥ ‖αi − f ′i(w∗)‖2 such that Hi → 0 as w → w∗. We
+start with α0i =0 and (conceptually) initialize Hi = ‖f ′i(w∗)‖2, and then update Hi in sync with αi,
+H+i :=
+{
+2Lhi(w) if αi is updated
+Hi otherwise
+(12)
+so that we always maintain valid bounds ‖αi − f ′i(w∗)‖2 ≤ Hi and E‖αi − f ′i(w∗)‖2 ≤ H̄ with
+H̄ := 1n
+∑n
+i=1Hi. The Hi are quantities showing up in the analysis, but need not be computed. We
+now define a σ-parameterized family of Lyapunov functions1
+Lσ(w,H) := ‖w − w∗‖2 + Sσ H̄, with S :=
+(
+γn
+Lq
+)
+and 0 ≤ σ ≤ 1 . (13)
+1This is a simplified version of the one appearing in [4], as we assume f ′(w∗) = 0 (unconstrained regime).
+3
+In expectation under a random update, the Lyapunov function Lσ changes as ELσ(w+, H+) =
+E‖w+ −w∗‖2 + SσEH̄+. We can readily apply Lemma 1 to bound the first part. The second part
+is due to (12), which mirrors the update of the α variables. By crucially using the property that any
+αj has the same probability of being updated in (3), we get the following result:
+Lemma 2. For a uniform q-memorization algorithm, it holds that
+EH̄+ =
+(
+n− q
+n
+)
+H̄ +
+2Lq
+n
+fδ(w). (14)
+Note that in expectation the shrinkage does not depend on the location of previous iterates wτ and
+the new increment is proportional to the sub-optimality of the current iterate w. Technically, this is
+how the possibly complicated dependency on previous iterates is dealt with in an effective manner.
+Convergence Analysis We first state our main Lemma about Lyapunov function contractions:
+Lemma 3. Fix c ∈ (0; 1] and σ ∈ [0; 1] arbitrarily. For any uniform q-memorization algorithm with
+sufficiently small step size γ such that
+γ ≤ 1
+2L
+min
+{
+Kσ
+K + 2cσ
+, 1− σ
+}
+, and K :=
+4qL
+nµ
+, (15)
+we have that
+ELσ(w+, H+) ≤ (1− ρ)Lσ(w,H), with ρ := cµγ. (16)
+Note that γ < 12L maxσ∈[0,1] min{σ, 1− σ} =
+1
+4L (in the c→ 0 limit).
+By maximizing the bounds in Lemma 3 over the choices of c and σ, we obtain our main result that
+provides guaranteed geometric rates for all step sizes up to 14L .
+Theorem 1. Consider a uniform q-memorization algorithm. For any step size γ = a4L with a < 1,
+the algorithm converges at a geometric rate of at least (1− ρ(γ)) with
+ρ(γ) =
+q
+n
+· 1− a
+1− a/2
+=
+µ
+4L
+· K(1− a)
+1− a/2
+, if γ ≥ γ∗(K), otherwise ρ(γ) = µγ (17)
+where
+γ∗(K) :=
+a∗(K)
+4L
+, a∗(K) :=
+2K
+1 +K +
+√
+1 +K2
+, K :=
+4qL
+nµ
+=
+4q
+n
+κ . (18)
+We would like to provide more insights into this result.
+Corollary 1. In Theorem 1, ρ is maximized for γ = γ∗(K). We can write ρ∗(K) = ρ(γ∗) as
+ρ∗(K) =
+µ
+4L
+a∗(K) =
+q
+n
+a∗(K)
+K
+=
+q
+n
+[
+2
+1 +K +
+√
+1 +K2
+]
+(19)
+In the big data regime ρ∗ = qn (1 −
+1
+2K + O(K
+3)), whereas in the ill-conditioned case ρ∗ =
+µ
+4L (1−
+1
+2K
+−1 +O(K−3)).
+The guaranteed rate is bounded by µ4L in the regime where the condition number dominates n (large
+K) and by qn in the opposite regime of large data (small K). Note that if K ≤ 1, we have ρ
+∗ = ζ qn
+with ζ ∈ [2/(2 +
+√
+2); 1] ≈ [0.585; 1]. So for q ≤ n µ4L , it pays off to increase freshness as it affects
+the rate proportionally. In the ill-conditioned regime (κ > n), the influence of q vanishes.
+Note that for γ ≥ γ∗(K), γ → 14L the rate decreases monotonically, yet the decrease is only minor.
+With the exception of a small neighborhood around 14L , the entire range of γ ∈ [γ
+∗; 14L ) results in
+very similar rates. Underestimating γ∗ however leads to a (significant) slow-down by a factor γ/γ∗.
+As the optimal choice of γ depends on K, i.e. µ, we would prefer step sizes that are µ-independent,
+thus giving rates that adapt to the local curvature (see [9]). It turns out that by choosing a step size
+that maximizes minK ρ(γ)/ρ∗(K), we obtain a K-agnostic step size with rate off by at most 1/2:
+Corollary 2. Choosing γ = 2−
+√
+2
+4L , leads to ρ(γ) ≥ (2−
+√
+2)ρ∗(K) > 12ρ
+∗(K) for all K.
+To gain more insights into the trade-offs for these fixed large universal step sizes, the following
+corollary details the range of rates obtained:
+Corollary 3. Choosing γ = a4L with a < 1 yields ρ = min{
+1−a
+1− 12a
+q
+n ,
+a
+4
+µ
+L}. In particular, we have
+for the choice γ = 15L that ρ = min{
+1
+3
+q
+n ,
+1
+5
+µ
+L} (roughly matching the rate given in [4] for q = 1).
+4
+3 Sharing Gradient Memory
+3.1 -Approximation Analysis
+As we have seen, fresher gradient memory, i.e. a larger choice for q, affects the guaranteed conver-
+gence rate as ρ ∼ q/n. However, as long as one step of a q-memorization algorithm is as expensive
+as q steps of a 1-memorization algorithm, this insight does not lead to practical improvements per
+se. Yet, it raises the question, whether we can accelerate these methods, in particular N -SAGA,
+by approximating gradients stored in the αi variables. Note that we are always using the correct
+stochastic gradients in the current update and by assuring
+∑
+i ᾱi = 0, we will not introduce any bias
+in the update direction. Rather, we lose the guarantee of asymptotically vanishing variance at w∗.
+However, as we will show, it is possible to retain geometric rates up to a δ-ball around w∗.
+We will focus on SAGA-style updates for concreteness and investigate an algorithm that mirrorsN -
+SAGA with the only difference that it maintains approximations βi to the true αi variables. We aim
+to guarantee E‖αi − βi‖2 ≤  and will use Eq. (11) to modify the right-hand-side of Lemma 1. We
+see that approximation errors i are multiplied with γ2, which implies that we should aim for small
+learning rates, ideally without compromising the N -SAGA rate. From Theorem 1 and Corollary 1
+we can see that we can choose γ . q/µn for n sufficiently large, which indicates that there is hope
+to dampen the effects of the approximations. We now make this argument more precise.
+Theorem 2. Consider a uniform q-memorization algorithm with α-updates that are on average -
+accurate (i.e. E‖αi − βi‖2 ≤ ). For any step size γ ≤ γ̃(K), where γ̃ is given by Corollary 5 in
+the appendix (note that γ̃(K) ≥ 23γ
+∗(K) and γ̃(K)→ γ∗(K) as K → 0), we get
+EL(wt, Ht) ≤ (1− µγ)tL0 +
+4γ
+µ
+, with L0 := ‖w0 − w∗‖2 + s(γ)E‖fi(w∗)‖2, (20)
+where E denote the (unconditional) expectation over histories (in contrast to E which is conditional),
+and s(γ) := 4γKµ (1− 2Lγ).
+Corollary 4. With γ = min{µ, γ̃(K)} we have
+4γ
+µ
+≤ 4, with a rate ρ = min{µ2, µγ̃} . (21)
+In the relevant case of µ ∼ 1/
+√
+n, we thus converge towards some
+√
+-ball around w∗ at a similar
+rate as for the exact method. For µ ∼ n−1, we have to reduce the step size significantly to com-
+pensate the extra variance and to still converge to an
+√
+-ball, resulting in the slower rate ρ ∼ n−2,
+instead of ρ ∼ n−1.
+We also note that the geometric convergence of SGD with a constant step size to a neighborhood
+of the solution (also proven in [8]) can arise as a special case in our analysis. By setting αi = 0 in
+Lemma 1, we can take  = E‖f ′i(w∗)‖2 for SGD. An approximate q-memorization algorithm can
+thus be interpreted as making  an algorithmic parameter, rather than a fixed value as in SGD.
+3.2 Algorithms
+Sharing Gradient Memory We now discuss our proposal of using neighborhoods for sharing
+gradient information between close-by data points. Thereby we avoid an increase in gradient com-
+putations relative to q- or N -SAGA at the expense of suffering an approximation bias. This leads
+to a new tradeoff between freshness and approximation quality, which can be resolved in non-trivial
+ways, depending on the desired final optimization accuracy.
+We distinguish two types of quantities. First, the gradient memory αi as defined by the reference
+algorithm N -SAGA. Second, the shared gradient memory state βi, which is used in a modified
+update rule in Eq. (2), i.e. w+ = w − γ(f ′i(w)− βi + β̄). Assume that we select an index i for the
+weight update, then we generalize Eq. (3) as follows
+β+j :=
+{
+f ′i(w) if j ∈ Ni
+βj otherwise
+, β̄ :=
+1
+n
+n∑
+i=1
+βi, β̄i := βi − β̄ . (22)
+In the important case of generalized linear models, where one has f ′i(w) = ξ
+′
+i(w)xi, we can modify
+the relevant case in Eq. (22) by β+j := ξ
+′
+i(w)xj . This has the advantages of using the correct
+direction, while reducing storage requirements.
+5
+Approximation Bounds For our analysis, we need to control the error ‖αi − βi‖2 ≤ i. This
+obviously requires problem-specific investigations.
+Let us first look at the case of ridge regression. fi(w) := 12 (〈xi, w〉 − yi)
+2 + λ2 ‖w‖
+2 and thus
+f ′i(w) = ξ
+′
+i(w)xi + λw with ξ
+′
+i(w) := 〈xi, w〉 − yi. Considering j ∈ Ni being updated, we have
+‖α+j − β
++
+j ‖ = |ξ
+′
+j(w)− ξ′i(w)|‖xj‖ ≤ (δij‖w‖+ |yj − yi|) ‖xj‖ =: ij(w) (23)
+where δij := ‖xi − xj‖. Note that this can be pre-computed with the exception of the norm ‖w‖
+that we only know at the time of an update.
+Similarly, for regularized logistic regression with y ∈ {−1, 1}, we have ξ′i(w) = yi/(1 + eyi〈xi,w〉).
+With the requirement on neighbors that yi = yj we get
+‖α+j − β
++
+j ‖ ≤
+eδij‖w‖ − 1
+1 + e−〈xi,w〉
+‖xj‖ =: ij(w) (24)
+Again, we can pre-compute δij and ‖xj‖. In addition to ξ′i(w) we can also store 〈xi, w〉.
+N -SAGA We can use these bounds in two ways. First, assuming that the iterates stay within a
+norm-ball (e.g. L2-ball), we can derive upper bounds
+j(r) ≥ max{ij(w) : j ∈ Ni, ‖w‖ ≤ r}, (r) =
+1
+n
+∑
+j
+j(r) . (25)
+Obviously, the more compact the neighborhoods are, the smaller (r). This is most useful for the
+analysis. Second, we can specify a target accuracy  and then prune neighborhoods dynamically.
+This approach is more practically relevant as it allows us to directly control . However, a dynam-
+ically varying neighborhood violates Definition 1. We fix this in a sound manner by modifying the
+memory updates as follows:
+β+j :=
+
+f ′i(w) if j ∈ Ni and ij(w) ≤ 
+f ′j(w) if j ∈ Ni and ij(w) > 
+βj otherwise
+(26)
+This allows us to interpolate between sharing more aggressively (saving computation) and perform-
+ing more computations in an exact manner. In the limit of → 0, we recoverN -SAGA, as → max
+we recover the first variant mentioned.
+Computing Neighborhoods Note that the pairwise Euclidean distances show up in the bounds in
+Eq. (23) and (24). In the classification case we also require yi = yj , whereas in the ridge regression
+case, we also want |yi − yj | to be small. Thus modulo filtering, this suggests the use of Euclidean
+distances as the metric for defining neighborhoods. Standard approximation techniques for finding
+near(est) neighbors can be used. This comes with a computational overhead, yet the additional costs
+will amortize over multiple runs or multiple data analysis tasks.
+4 Experimental Results
+Algorithms We present experimental results on the performance of the different variants of mem-
+orization algorithms for variance reduced SGD as discussed in this paper. SAGA has been uniformly
+superior to SVRG in our experiments, so we compare SAGA and N -SAGA (from Eq. (26)), along-
+side with SGD as a straw man and q-SAGA as a point of reference for speed-ups. We have chosen
+q = 20 for q-SAGA and N -SAGA. The same setting was used across all data sets and experiments.
+Data Sets As special cases for the choice of the loss function and regularizer in Eq. (1), we con-
+sider two commonly occurring problems in machine learning, namely least-square regression and
+`2-regularized logistic regression. We apply least-square regression on the million song year regres-
+sion from the UCI repository. This dataset contains n = 515, 345 data points, each described by
+d = 90 input features. We apply logistic regression on the cov and ijcnn1 datasets obtained from
+the libsvm website 2. The cov dataset contains n = 581, 012 data points, each described by d = 54
+input features. The ijcnn1 dataset contains n = 49, 990 data points, each described by d = 22 input
+features. We added an `2-regularizer Ω(w) = µ‖w‖22 to ensure the objective is strongly convex.
+2http://www.csie.ntu.edu.tw/˜cjlin/libsvmtools/datasets
+6
+(a) Cov (b) Ijcnn1 (c) Year
+epochs
+2 4 6 8 10 12 14 16 18
+S
+u
+b
+o
+p
+ti
+m
+a
+li
+ty
+10 -8
+10 -6
+10 -4
+10 -2
+10 0
+SGD cst
+SGD
+SAGA
+q-SAGA
+0N -SAGA 0 =1
+0N -SAGA 0 =0.1
+0N -SAGA 0 =0.01
+epochs
+2 4 6 8 10
+S
+u
+b
+o
+p
+ti
+m
+a
+li
+ty
+10 -10
+10 -8
+10 -6
+10 -4
+10 -2
+10 0
+SGD cst
+SGD
+SAGA
+q-SAGA
+0N -SAGA 0 =0.1
+0N -SAGA 0 =0.05
+0N -SAGA 0 =0.01
+epochs
+2 4 6 8 10 12 14 16 18
+S
+u
+b
+o
+p
+ti
+m
+a
+li
+ty
+10 -8
+10 -6
+10 -4
+10 -2
+10 0
+SGD cst
+SGD
+SAGA
+q-SAGA
+0N -SAGA 0 =2
+0N -SAGA 0 =1
+0N -SAGA 0 =0.5
+µ = 10−1, gradient evaluation
+epochs
+2 4 6 8 10 12 14 16 18
+S
+u
+b
+o
+p
+ti
+m
+a
+li
+ty
+10 -8
+10 -6
+10 -4
+10 -2
+10 0
+epochs
+2 4 6 8 10
+S
+u
+b
+o
+p
+ti
+m
+a
+li
+ty
+10 -8
+10 -6
+10 -4
+10 -2
+10 0
+epochs
+2 4 6 8 10 12 14 16 18
+S
+u
+b
+o
+p
+ti
+m
+a
+li
+ty
+10 -8
+10 -6
+10 -4
+10 -2
+10 0
+µ = 10−3, gradient evaluation
+epochs
+2 4 6 8 10 12 14 16 18
+S
+u
+b
+o
+p
+ti
+m
+a
+li
+ty
+10 -10
+10 -8
+10 -6
+10 -4
+10 -2
+10 0
+epochs
+2 4 6 8 10
+S
+u
+b
+o
+p
+ti
+m
+a
+li
+ty
+10 -10
+10 -5
+10 0
+epochs
+2 4 6 8 10 12 14 16 18
+S
+u
+b
+o
+p
+ti
+m
+a
+li
+ty
+10 -10
+10 -5
+10 0
+µ = 10−1, datapoint evaluation
+epochs
+2 4 6 8 10 12 14 16 18
+S
+u
+b
+o
+p
+ti
+m
+a
+li
+ty
+10 -10
+10 -5
+10 0
+epochs
+2 4 6 8 10
+S
+u
+b
+o
+p
+ti
+m
+a
+li
+ty
+10 -10
+10 -5
+10 0
+epochs
+2 4 6 8 10 12 14 16 18
+S
+u
+b
+o
+p
+ti
+m
+a
+li
+ty
+10 -10
+10 -8
+10 -6
+10 -4
+10 -2
+10 0
+µ = 10−3, datapoint evaluation
+Figure 1: Comparison of N -SAGA, q-SAGA, SAGA and SGD (with decreasing and constant step
+size) on three datasets. The top two rows show the suboptimality as a function of the number
+of gradient evaluations for two different values of µ = 10−1, 10−3. The bottom two rows show
+the suboptimality as a function of the number of datapoint evaluations (i.e. number of stochastic
+updates) for two different values of µ = 10−1, 10−3.
+7
+Experimental Protocol We have run the algorithms in question in an i.i.d. sampling setting and
+averaged the results over 5 runs. Figure 1 shows the evolution of the suboptimality fδ of the ob-
+jective as a function of two different metrics: (1) in terms of the number of update steps performed
+(“datapoint evaluation”), and (2) in terms of the number of gradient computations (“gradient evalua-
+tion”). Note that SGD and SAGA compute one stochastic gradient per update step unlike q-SAGA,
+which is included here not as a practically relevant algorithm, but as an indication of potential im-
+provements that could be achieved by fresher corrections. A step size γ = qµn was used everywhere,
+except for “plain SGD”. Note that as K  1 in all cases, this is close to the optimal value suggested
+by our analysis; moreover, using a step size of ∼ 1L for SAGA as suggested in previous work [9]
+did not appear to give better results. For plain SGD, we used a schedule of the form γt = γ0/t with
+constants optimized coarsely via cross-validation. The x-axis is expressed in units of n (suggestively
+called ”epochs”).
+SAGA vs. SGD cst As we can see, if we run SGD with the same constant step size as SAGA,
+it takes several epochs until SAGA really shows a significant gain. The constant step-size variant
+of SGD is faster in the early stages until it converges to a neighborhood of the optimum, where
+individual runs start showing a very noisy behavior.
+SAGA vs. q-SAGA q-SAGA outperforms plain SAGA quite consistently when counting stochas-
+tic update steps. This establishes optimistic reference curves of what we can expect to achieve with
+N -SAGA. The actual speed-up is somewhat data set dependent.
+N -SAGA vs. SAGA and q-SAGA N -SAGA with sufficiently small  can realize much of the
+possible freshness gains of q-SAGA and performs very similar for a few (2-10) epochs, where it
+traces nicely between the SAGA and q-SAGA curves. We see solid speed-ups on all three datasets
+for both µ = 0.1 and µ = 0.001.
+Asymptotics It should be clearly stated that running N -SAGA at a fixed  for longer will not
+result in good asymptotics on the empirical risk. This is because, as theory predicts, N -SAGA
+can not drive the suboptimality to zero, but rather levels-off at a point determined by . In our
+experiments, the cross-over point with SAGA was typically after 5− 15 epochs. Note that the gains
+in the first epochs can be significant, though. In practice, one will either define a desired accuracy
+level and choose  accordingly or one will switch to SAGA for accurate convergence.
+5 Conclusion
+We have generalized variance reduced SGD methods under the name of memorization algorithms
+and presented a corresponding analysis, which commonly applies to all such methods. We have
+investigated in detail the range of safe step sizes with their corresponding geometric rates as guar-
+anteed by our theory. This has delivered a number of new insights, for instance about the trade-offs
+between small (∼ 1n ) and large (∼
+1
+4L ) step sizes in different regimes as well as about the role of
+the freshness of stochastic gradients evaluated at past iterates.
+We have also investigated and quantified the effect of additional errors in the variance correction
+terms on the convergence behavior. Dependent on how µ scales with n, we have shown that such
+errors can be tolerated, yet, for small µ, may have a negative effect on the convergence rate as much
+smaller step sizes are needed to still guarantee convergence to a small region. We believe this result
+to be relevant for a number of approximation techniques in the context of variance reduced SGD.
+Motivated by these insights and results of our analysis, we have proposed N -SAGA, a modification
+of SAGA that exploits similarities between training data points by defining a neighborhood system.
+Approximate versions of per-data point gradients are then computed by sharing information among
+neighbors. This opens-up the possibility of variance-reduction in a streaming data setting, where
+each data point is only seen once. We believe this to be a promising direction for future work.
+Empirically, we have been able to achieve consistent speed-ups for the initial phase of regularized
+risk minimization. This shows that approximate computations of variance correction terms consti-
+tutes a promising approach of trading-off computation with solution accuracy.
+Acknowledgments We would like to thank Yannic Kilcher, Martin Jaggi, Rémi Leblond and the
+anonymous reviewers for helpful suggestions and corrections.
+8
+References
+[1] A. Andoni and P. Indyk. Near-optimal hashing algorithms for approximate nearest neighbor in
+high dimensions. Commun. ACM, 51(1):117–122, 2008.
+[2] L. Bottou. Large-scale machine learning with stochastic gradient descent. In COMPSTAT,
+pages 177–186. Springer, 2010.
+[3] S. Dasgupta and K. Sinha. Randomized partition trees for nearest neighbor search. Algorith-
+mica, 72(1):237–263, 2015.
+[4] A. Defazio, F. Bach, and S. Lacoste-Julien. SAGA: A fast incremental gradient method with
+support for non-strongly convex composite objectives. In Advances in Neural Information
+Processing Systems, pages 1646–1654, 2014.
+[5] R. Johnson and T. Zhang. Accelerating stochastic gradient descent using predictive variance
+reduction. In Advances in Neural Information Processing Systems, pages 315–323, 2013.
+[6] J. Konečnỳ and P. Richtárik. Semi-stochastic gradient descent methods. arXiv preprint
+arXiv:1312.1666, 2013.
+[7] H. Robbins and S. Monro. A stochastic approximation method. The annals of mathematical
+statistics, pages 400–407, 1951.
+[8] M. Schmidt. Convergence rate of stochastic gradient with constant step size. UBC Technical
+Report, 2014.
+[9] M. Schmidt, N. L. Roux, and F. Bach. Minimizing finite sums with the stochastic average
+gradient. arXiv preprint arXiv:1309.2388, 2013.
+[10] S. Shalev-Shwartz, Y. Singer, N. Srebro, and A. Cotter. Pegasos: Primal estimated sub-gradient
+solver for SVM. Mathematical programming, 127(1):3–30, 2011.
+[11] S. Shalev-Shwartz and T. Zhang. Stochastic dual coordinate ascent methods for regularized
+loss. The Journal of Machine Learning Research, 14(1):567–599, 2013.
+9
