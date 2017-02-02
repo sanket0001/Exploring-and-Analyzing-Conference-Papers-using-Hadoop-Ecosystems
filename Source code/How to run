@@ -1,0 +1,104 @@
+//Readme file for Exploring and Analyzing Conference Papers Source code
+
+
+Link dataset- https://www.kaggle.com/benhamner/nips-2015-papers
+
+First convert all pdf files to text files by PDFConvert source code.
+PDFConvert- this folder contains code for converting PDF files into text files
+
+Data- this folder contains Input and hive data folder.
+
+Input- this folder contains all papers text files.
+First put it into HDFS by command-
+hadoop fs -put input /user/training
+
+
+Problem-1 - Finding similar papers
+
+Here it' divided into two parts.First is to find the word and frequency by TF-IDF. And second is to find similar paper for sample paper.
+
+WordFrequency- this folder contains source code for finding TF-IDF.
+SortSimilar- this folder contains source code for finding similar papers.
+
+How to run-
+Part-1
+Go to WordFrequency folder in terminal.
+And then write command-
+hadoop jar indexer1.jar index.WordFrequenceInDocument
+{I have statically provided input and output path for everyone in the java file.}
+
+After it completes running. Write another command-
+hadoop jar indexer2.jar index.WordCountsInDocuments
+
+And one other command for final tf-idf output-
+hadoop jar indexer3.jar index.WordInCorpusTFIDF
+
+Note- [I have tried to run it in sequential mapper-reducer but in last when finding tf-idf output it is creating error. But if i run separately like this shown above it works properly.]
+
+Part-2
+Go to SortSimilar folder in terminal.
+And then write command-
+hadoop jar sortsimilar.jar
+
+It will give us output of similar papers and its frequency that how much is similarity between sample paper and that paper.
+
+
+Problem-2 - Finding total number of paper published by country name.
+
+Country- this folder contains source code for finding country counts.
+
+How to run-
+
+Go to Country folder in terminal.
+And then run command-
+hadoop jar country.jar
+
+Problem-3 - Finding datasets 
+
+Datasets- this folder contains source code for finding datasets and number of times its used in papers.
+
+How to run-
+
+Go to Datasets folder in terminal.
+And then run command-
+hadoop jar datasets.jar
+
+Problem-4 - Finding top author's name for publishing more number of paper
+
+this one is processes by hive.
+Authors.csv and PaperAuthors.csv contains all data.
+
+How to run-
+First create table for both files using command-
+
+CREATE TABLE Authors (Id int , Name string) row format delimited fields terminated by ',';
+
+
+
+CREATE TABLE PaperAuthors (Id int , PaperId  int, AuthorId int ) row format delimited fields terminated by ',';
+
+
+
+And then load data into it from csv files by command-
+
+
+
+LOAD DATA LOCAL INPATH '/home/training/Desktop/test/Authors.csv' OVERWRITE INTO TABLE Authors;
+
+
+LOAD DATA LOCAL INPATH '/home/training/Desktop/test/PaperAuthors.csv' OVERWRITE INTO TABLE PaperAuthors;
+
+
+And run below query for our problem-
+
+SELECT a.Name Author,
+COUNT(a.Name) NumPapers
+FROM Authors a
+INNER JOIN PaperAuthors p ON p.AuthorId=a.Id
+GROUP BY a.Name
+ORDER BY NumPapers DESC;
+
+
+
+
+Project snapshot- this folder contains snapshots of all commands run in terminal and its output.
